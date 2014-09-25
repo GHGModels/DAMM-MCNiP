@@ -2,11 +2,14 @@ F = xlsread ('fisher_noleap_2012.xlsx');
 F1 = rep(F', 24);
 T = rep(F1, 500);
 
-EO1 = rep([0 0 0.00005 0.00005 0.00005 0 0 0 0 0 0 0],730); %%oaks
-EO = rep(EO1, 500); %resp = 7.3215
-EH1 = rep([0 0 0 0 0 0 0 0.00005 0.00005 0.00005 0 0],730); %%hemlock
-EH = rep(EH1, 500); %resp = 7.3404
-E=EO; 
+EO1 = rep([0 0 0.0002 0.0002 0.0002 0 0 0 0 0 0 0],730); %%oaks %%mgC/cm3/hr based on live fine root biomass* exudation rate
+EO = rep(EO1, 500); %resp = 7.5781
+EH1 = rep([0 0 0 0 0 0 0 0.0002 0.0002 0.0002 0 0],730); %%hemlock
+EH = rep(EH1, 500); %resp = 7.6531
+SU1 = rep([0 0 0 0 0 0.0002 0.0002 0.0002 0 0 0 0],730); %%hemlock
+SU = rep(SU1, 500); %resp = 7.673047
+NO = rep(0.00005,4380000); %no seasonality
+E=rep(0,4380000); %resp = 7.5940
 %Code runs base model under normal and warmed temperatures
 tic
 %used parameter values from Allison et al. 2010 unless otherwise noted, N
@@ -175,7 +178,7 @@ end
 % xlabel('timesteps')
 % ylabel('g C/cm^3 soil') %in grams???
 % xlim([4371240,4380000])
-% % ylim([0,2.5])
+% ylim([0,2.5])
 % 
 % figure
 % plot(EC,'LineWidth',3)
