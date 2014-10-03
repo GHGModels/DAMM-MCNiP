@@ -1,22 +1,28 @@
 F = xlsread ('fisher_noleap_2012.xlsx');
 F1 = rep(F', 24);
-T = rep(F1, 500);
+T = rep(F1, 2000);
+% Litter_C = rep([0 0 0 0 0 0 0 0 0.002 0.002 0.002 0], 730); %annual sum is 4.38 mgC/cm3
+% Litter_C = rep(Litter_C, 2000); 
 
-% EO1 = rep([0 0 0.0002 0.0002 0.0002 0 0 0 0 0 0 0],730); %%oaks %%mgC/cm3/hr based on live fine root biomass* exudation rate
-% EO = rep(EO1, 500); %resp = 7.5781
-% EH1 = rep([0 0 0 0 0 0 0 0.0002 0.0002 0.0002 0 0],730); %%hemlock
-% EH = rep(EH1, 500); %resp = 7.6531
-% SU1 = rep([0 0 0 0 0 0.0002 0.0002 0.0002 0 0 0 0],730); %%hemlock
-% SU = rep(SU1, 500); %resp = 7.673047
-% NO = rep(0.00005,4380000); %no seasonality
+%E=rep(0,Nt); %resp = 7.5940
+Litter_C=rep(0.0005,Nt);
+Litter_N = Litter_C/CN_s;
+
+EO1 = rep([0 0 0.0002 0.0002 0.0002 0 0 0 0 0 0 0],730); %%oaks %%mgC/cm3/hr based on live fine root biomass* exudation rate
+EO = rep(EO1, 2000); %resp = 7.5781
+EH1 = rep([0 0 0 0 0 0 0 0.0002 0.0002 0.0002 0 0],730); %%hemlock
+EH = rep(EH1, 2000); %resp = 7.6531
+SU1 = rep([0 0 0 0 0 0.0002 0.0002 0.0002 0 0 0 0],730); %%hemlock
+SU = rep(SU1, 2000); %resp = 7.673047
+ NO = rep(0.00005,Nt); %no seasonality
+ E = EH;
 
 %Code runs base model under normal and warmed temperatures
 tic
 %used parameter values from Allison et al. 2010 unless otherwise noted, N
 %these parameter values are the default values for the base model
 dt  = 0.1; %timestep interval units = hours
-Nt = 4380000;%number of timesteps model will run for
-E=rep(0,Nt); %resp = 7.5940
+Nt =  17520000;%number of timesteps model will run for
 R = 0.008314; %gas constant used in Arrhenius equation (kJ mol-1 degree-1)
 CN_s = 27.6;%C:N of SOM as given by Schimel & Weintraub 2003
 CN_m = 10;%C:N of microbes
@@ -31,8 +37,8 @@ MIC_to_SOC  = 0.5; %proportion of dead microbial biomass that re-enters SOC pool
 MIC_to_SON = 0.5; %proportion of dead microbial biomass that re-enters SON pool, (1-MICtoSOC = proporation of microbial biomass that re-enters DON pool)
 DOC_input = 0.0005;%external C input into DOC pool(e.g. root exudates,root turnover) mg C cm-3 soil hour-1
 DON_input = 0.0005/CN_s;%external N input into DON pool(e.g.root turnover)mg N cm-3 soil hour-1 
-Litter_C =  0.0005; %external C input into SOC pool(e.g. leaf litter, FWD) mg C cm-3 soil hour-1
-Litter_N = 0.0005/CN_s;%external N input into SON pool (e.g.leaf litter, FWD) mg N cm-3 soil hour-1, 
+%Litter_C =  0.0005; %external C input into SOC pool(e.g. leaf litter, FWD) mg C cm-3 soil hour-1
+%Litter_N = 0.0005/CN_s;%external N input into SON pool (e.g.leaf litter, FWD) mg N cm-3 soil hour-1, 
 %%not sure if this is the correct stoichiometry for litter inputs
 
 %Vmax determined by Arrheinus equation, Km by a linear relationship with temp
@@ -170,8 +176,8 @@ Km_N =  Km_C;
             DECOM_N(i) = Vmax_N.*(1-a)*EC(i).*(SON(i)./(Km_N+SON(i)));%depolymerization of SON by enzymes
             
             %SOM pools
-            SOC(i+1) = SOC(i) + dt * (Litter_C + DEATH_C(i) * MIC_to_SOC - DECOM_C(i));
-            SON(i+1) = SON(i) + dt * (Litter_N + DEATH_N(i) *MIC_to_SON - DECOM_N(i));
+            SOC(i+1) = SOC(i) + dt * (Litter_C(i) + DEATH_C(i) * MIC_to_SOC - DECOM_C(i));
+            SON(i+1) = SON(i) + dt * (Litter_N(i) + DEATH_N(i) *MIC_to_SON - DECOM_N(i));
  
             %Dissolved C&N pools
             DOC(i+1) = DOC(i) + dt * (DOC_input + E(i) + DECOM_C(i) + DEATH_C(i)*(1-MIC_to_SOC) + (CN_enz/(1+CN_enz)).*ELOSS(i) - UPT_C(i));
@@ -183,73 +189,74 @@ end
 
 
 %will create figures for each pool over time 
-
-figure
-plot(MIC_C,'LineWidth',3)
-legend('seasonal model')
-title('Microbial Biomass response to warming')
-xlabel('timesteps')
-ylabel('g C/cm^3 soil') %in grams???
-% xlim([4371240,4380000])
-
-figure
-plot(EC,'LineWidth',3)
-legend('seasonal model')
-title('Enzyme pool response to warming')
-xlabel('timesteps')
-ylabel('g C/cm^3 soil')
-% xlim([4371240,4380000])
-
-
-figure
-plot(SOC,'LineWidth',3)
-legend('seasonal model')
-title('SOC response to warming')
-xlabel('timesteps')
-ylabel('g C/cm^3 soil')
-% xlim([4371240,4380000])
-
-figure
-plot(SON,'LineWidth',3)
-legend('seasonal model')
-title('SON response to warming')
-xlabel('timesteps')
-ylabel('g N/cm^3 soil')
-% xlim([4371240,4380000])
-
-figure
-plot(DOC,'LineWidth',3)
-legend('seasonal model')
-title('DOC response to warming')
-xlabel('timesteps')
-ylabel('g C/cm^3 soil')
-% xlim([4371240,4380000])
-
-figure
-plot(DON,'LineWidth',3)
-legend('seasonal model')
-title('DON response to warming')
-xlabel('timesteps')
-ylabel('g N/cm^3 soil')
-% xlim([4371240,4380000])
-
-figure
-plot(CMIN,'LineWidth',3)
-legend('seasonal model')
-title('Soil respiration response to warming')
-xlabel('timesteps')
-ylabel('g C/cm^3 soil/timestep')
-% xlim([4371240,4380000])
-
-figure
-plot(NMIN,'LineWidth',3)
-legend('seasonal model')
-title('N mineralization response to warming')
-xlabel('timesteps')
-ylabel('g N /cm^3 soil/timestep')
-% xlim([4371240,4380000])
+% 
+% figure
+% plot(MIC_C,'LineWidth',3)
+% legend('seasonal model')
+% title('Microbial Biomass response to warming')
+% xlabel('timesteps')
+% ylabel('g C/cm^3 soil') %in grams???
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(EC,'LineWidth',3)
+% legend('seasonal model')
+% title('Enzyme pool response to warming')
+% xlabel('timesteps')
+% ylabel('g C/cm^3 soil')
+% xlim([Nt-8760,Nt])
+% 
+% 
+% figure
+% plot(SOC,'LineWidth',3)
+% legend('seasonal model')
+% title('SOC response to warming')
+% xlabel('timesteps')
+% ylabel('g C/cm^3 soil')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(SON,'LineWidth',3)
+% legend('seasonal model')
+% title('SON response to warming')
+% xlabel('timesteps')
+% ylabel('g N/cm^3 soil')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(DOC,'LineWidth',3)
+% legend('seasonal model')
+% title('DOC response to warming')
+% xlabel('timesteps')
+% ylabel('g C/cm^3 soil')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(DON,'LineWidth',3)
+% legend('seasonal model')
+% title('DON response to warming')
+% xlabel('timesteps')
+% ylabel('g N/cm^3 soil')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(CMIN,'LineWidth',3)
+% legend('seasonal model')
+% title('Soil respiration response to warming')
+% xlabel('timesteps')
+% ylabel('g C/cm^3 soil/timestep')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(NMIN,'LineWidth',3)
+% legend('seasonal model')
+% title('N mineralization response to warming')
+% xlabel('timesteps')
+% ylabel('g N /cm^3 soil/timestep')
+% xlim([Nt-8760,Nt])
 
 toc
 
-resp = sum(CMIN(4371240:4380000,1));  %in mg/cm3/yr
+resp = sum(CMIN(Nt-8760:Nt,1));  %in mg/cm3/yr
+nmin = sum(NMIN(Nt-8760:Nt,1)); %in mg/cm3/yr
 
