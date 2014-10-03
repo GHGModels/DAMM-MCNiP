@@ -4,18 +4,16 @@ T = rep(F1, 2000);
 % Litter_C = rep([0 0 0 0 0 0 0 0 0.002 0.002 0.002 0], 730); %annual sum is 4.38 mgC/cm3
 % Litter_C = rep(Litter_C, 2000); 
 
-%E=rep(0,Nt); %resp = 7.5940
-Litter_C=rep(0.0005,Nt);
-Litter_N = Litter_C/CN_s;
+E=rep(0,Nt); %resp = 7.5940
 
-EO1 = rep([0 0 0.0002 0.0002 0.0002 0 0 0 0 0 0 0],730); %%oaks %%mgC/cm3/hr based on live fine root biomass* exudation rate
-EO = rep(EO1, 2000); %resp = 7.5781
-EH1 = rep([0 0 0 0 0 0 0 0.0002 0.0002 0.0002 0 0],730); %%hemlock
-EH = rep(EH1, 2000); %resp = 7.6531
-SU1 = rep([0 0 0 0 0 0.0002 0.0002 0.0002 0 0 0 0],730); %%hemlock
-SU = rep(SU1, 2000); %resp = 7.673047
- NO = rep(0.00005,Nt); %no seasonality
- E = EH;
+% EO1 = rep([0 0 0.0002 0.0002 0.0002 0 0 0 0 0 0 0],730); %%oaks %%mgC/cm3/hr based on live fine root biomass* exudation rate
+% EO = rep(EO1, 2000); %resp = 7.5781
+% EH1 = rep([0 0 0 0 0 0 0 0.0002 0.0002 0.0002 0 0],730); %%hemlock
+% EH = rep(EH1, 2000); %resp = 7.6531
+% SU1 = rep([0 0 0 0 0 0.0002 0.0002 0.0002 0 0 0 0],730); %%hemlock
+% SU = rep(SU1, 2000); %resp = 7.673047
+% NO = rep(0.00005,Nt); %no seasonality
+% E = NO;
 
 %Code runs base model under normal and warmed temperatures
 tic
@@ -30,6 +28,9 @@ CN_enz = 3;%C:N of enzymes
 p = 0.5; %fraction of  C  initally allocated to enz production
 q = 0.5; %fraction of N initally  allocated to enz production
 a = 0.5; %fraction of enzyme pool acting on SOC pool(1-a = fraction of enz pool acting on SON pool)
+
+Litter_C = rep(0.0005,Nt);
+Litter_N = Litter_C/CN_s;
 
 r_death = 0.00015;%Microbial biomass turnover rate, hours-1
 r_ECloss = 0.001;%enzyme pool turnover rate hours-1
@@ -67,6 +68,8 @@ BD = 0.8; %bulk density in g/cm3
 PD = 2.52; %particle density in g/cm3
 soilM = 0.229; %initial soil moisture in cm3 H20/ cm3 soil
 porosity = 1 - BD/PD; 
+frac = 0.000414;
+Dliq = 3.17;
 
 %Variables, 
 %%this section of code creates empty matrices so that values at each timestep can be saved during model runs, I save all the variables,
@@ -84,6 +87,11 @@ DON = zeros(Nt,1); %DON
 CMIN = zeros(Nt,1); %C mineralized
 NMIN = zeros(Nt,1); %N mineralized
 O2 = zeros(Nt,1); %concentration of O2
+sol_SOC = zeros(Nt,1); %SOC that can be solubilized
+sol_SON = zeros(Nt, 1); %SON that can be solubilized
+avail_SOC = zeros(Nt,1); %available SOC
+avail_SON = zeros(Nt,1); %available SON
+
 
 %other variables
 DECOM_C = zeros(Nt,1); % C depolymerized by enzymes
@@ -114,6 +122,13 @@ EC(1,:)=    0.0381;
 for i = 1:Nt
 %this section will calculate O2 concentration at time i
 O2(i) = Dgas * O2airfrac * ((porosity-soilM)^(4/3));
+
+%this section will calculate available substrate for depolymerization and
+%uptake
+sol_SOC(i) = frac*SOC(i);
+sol_SON(i) = frac*SON(i);
+avail_SOC(i) = sol_SOC(i)*Dliq*soilM^3;
+avail_SON(i) = sol_SON(i)*Dliq*soilM^3;
     
 %this section of code will calculate vmax  Km and CUE at 20C and 25C. 
 % Equations for kinetic temperature relationships
@@ -172,8 +187,8 @@ Km_N =  Km_C;
             EC(i+1) = EC(i) +  dt * (EPROD(i) - ELOSS(i));%enzyme pool
             
             %Depolymerization inputs,derived from Allison et al 2010.
-            DECOM_C(i) = Vmax_C .* a*EC(i) .* (SOC(i) ./(Km_C + SOC(i)))*O2(i)/(Km_O2 + O2(i));%depolymerization of SOC by enzymes
-            DECOM_N(i) = Vmax_N.*(1-a)*EC(i).*(SON(i)./(Km_N+SON(i)));%depolymerization of SON by enzymes
+            DECOM_C(i) = Vmax_C .* a*EC(i) .* (avail_SOC(i) ./(Km_C + avail_SOC(i)))*O2(i)/(Km_O2 + O2(i));%depolymerization of SOC by enzymes
+            DECOM_N(i) = Vmax_N.*(1-a)*EC(i).*(avail_SON(i)./(Km_N + avail_SON(i)))*O2(i)/(Km_O2 + O2(i));%depolymerization of SON by enzymes
             
             %SOM pools
             SOC(i+1) = SOC(i) + dt * (Litter_C(i) + DEATH_C(i) * MIC_to_SOC - DECOM_C(i));
