@@ -60,7 +60,7 @@ b_CUE = 0.63;%intercept, mg C mg-1 soil
 m_CUE=-0.016;%slope, degree-1
 
 %DAMM constants
-Km_UPT_O2 = 0.121; %cm3 O2/cm3 air
+%Km_UPT_O2 = 0.121; %cm3 O2/cm3 air
 Km_O2 = 0.121; %cm3 O2/cm3 air
 Dgas = 1.67; 
 O2airfrac = 0.209; % L O2/ L air 
@@ -149,7 +149,7 @@ Km_N =  Km_C;
 
 %This section of code calculates the changes in pool sizes over model time
 %using a series of differential equations
-            UPT_C(i) = MIC_C(i) .* vmax_UPT_C *(DOC(i) ./ (km_UPT_C + DOC(i)))*O2(i)/(Km_UPT_O2 + O2(i)); %microbial C uptake,michaelis-menton dynamics
+            UPT_C(i) = MIC_C(i) .* vmax_UPT_C *(DOC(i) ./ (km_UPT_C + DOC(i))); %microbial C uptake,michaelis-menton dynamics
             CMIN(i) =  UPT_C(i) .* (1-CUE); %C mineralization
             
             UPT_N(i) = MIC_N(i) .* vmax_upt_N * DON(i) / (km_upt_N + DON(i)); %microbial N uptake michaelis-menton dynamics
