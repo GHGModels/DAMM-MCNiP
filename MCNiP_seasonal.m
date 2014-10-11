@@ -131,7 +131,7 @@ Km_N =  Km_C;
             UPT_C(i) = MIC_C(i) .* vmax_UPT_C *(DOC(i) ./ (km_UPT_C + DOC(i)))*O2(i)/(Km_UPT_O2 + O2(i)); %microbial C uptake,michaelis-menton dynamics
             CMIN(i) =  UPT_C(i) .* (1-CUE); %C mineralization
             
-            UPT_N(i) = MIC_N(i) .* vmax_upt_N * DON(i) / (km_upt_N + DON(i)); %microbial N uptake michaelis-menton dynamics
+            UPT_N(i) = MIC_N(i) .* vmax_upt_N * DON(i) ./ (km_upt_N + DON(i)); %microbial N uptake michaelis-menton dynamics
             DEATH_C(i) = r_death .* MIC_C(i); %microbial C turnover, first order process
             DEATH_N(i) = r_death .* MIC_N(i); %microbial N turnover,first order process
             
@@ -171,7 +171,7 @@ Km_N =  Km_C;
             
             %SOM pools
             SOC(i+1) = SOC(i) + dt * (Litter_C + DEATH_C(i) * MIC_to_SOC - DECOM_C(i));
-            SON(i+1) = SON(i) + dt * (Litter_N + DEATH_N(i) *MIC_to_SON - DECOM_N(i));
+            SON(i+1) = SON(i) + dt * (Litter_N + DEATH_N(i) * MIC_to_SON - DECOM_N(i));
  
             %Dissolved C&N pools
             DOC(i+1) = DOC(i) + dt * (DOC_input + E(i) + DECOM_C(i) + DEATH_C(i)*(1-MIC_to_SOC) + (CN_enz/(1+CN_enz)).*ELOSS(i) - UPT_C(i));
