@@ -181,73 +181,137 @@ Km_N =  Km_C;
 
 end
 
+save vars.mat
 
 %will create figures for each pool over time 
 
 figure
 plot(MIC_C,'LineWidth',3)
 legend('seasonal model')
-title('Microbial Biomass response to warming')
+title('Microbial Biomass')
 xlabel('timesteps')
-ylabel('g C/cm^3 soil') %in grams???
+ylabel('mg C/cm^3 soil') %in grams???
 % xlim([4371240,4380000])
+savefig(MIC_C.fig)
 
 figure
 plot(EC,'LineWidth',3)
 legend('seasonal model')
-title('Enzyme pool response to warming')
+title('Enzyme pool')
 xlabel('timesteps')
-ylabel('g C/cm^3 soil')
+ylabel('mg C/cm^3 soil')
 % xlim([4371240,4380000])
+savefig(EC.fig)
 
 
 figure
 plot(SOC,'LineWidth',3)
 legend('seasonal model')
-title('SOC response to warming')
+title('SOC')
 xlabel('timesteps')
-ylabel('g C/cm^3 soil')
+ylabel('mg C/cm^3 soil')
 % xlim([4371240,4380000])
+savefig(SOC.fig)
 
 figure
 plot(SON,'LineWidth',3)
 legend('seasonal model')
-title('SON response to warming')
+title('SON')
 xlabel('timesteps')
-ylabel('g N/cm^3 soil')
+ylabel('mg N/cm^3 soil')
 % xlim([4371240,4380000])
+savefig(SON.fig)
 
 figure
 plot(DOC,'LineWidth',3)
 legend('seasonal model')
-title('DOC response to warming')
+title('DOC')
 xlabel('timesteps')
-ylabel('g C/cm^3 soil')
+ylabel('mg C/cm^3 soil')
 % xlim([4371240,4380000])
+savefig(DOC.fig)
 
 figure
 plot(DON,'LineWidth',3)
 legend('seasonal model')
-title('DON response to warming')
+title('DON')
 xlabel('timesteps')
-ylabel('g N/cm^3 soil')
+ylabel('mg N/cm^3 soil')
 % xlim([4371240,4380000])
+savefig(DON.fig)
 
 figure
 plot(CMIN,'LineWidth',3)
 legend('seasonal model')
-title('Soil respiration response to warming')
+title('Soil respiration')
 xlabel('timesteps')
-ylabel('g C/cm^3 soil/timestep')
+ylabel('mg C/cm^3 soil/timestep')
 % xlim([4371240,4380000])
+savefig(CMIN.fig)
 
 figure
 plot(NMIN,'LineWidth',3)
 legend('seasonal model')
-title('N mineralization response to warming')
+title('N mineralization')
 xlabel('timesteps')
-ylabel('g N /cm^3 soil/timestep')
+ylabel('mg N /cm^3 soil/timestep')
 % xlim([4371240,4380000])
+savefig(NMIN.fig)
+
+figure
+plot(O2,'LineWidth',3)
+legend('seasonal model')
+title('Oxygen concentration')
+xlabel('timesteps')
+ylabel('cm^3 O2 /cm^3 soil/timestep')
+% xlim([4371240,4380000])
+savefig(O2.fig)
+
+figure
+plot(DECOM_C,'LineWidth',3)
+legend('seasonal model')
+title('C decomposition')
+xlabel('timesteps')
+ylabel('mg C /cm^3 soil/timestep')
+% xlim([4371240,4380000])
+savefig(DECOM_C.fig)
+
+figure
+plot(UPT_C,'LineWidth',3)
+legend('seasonal model')
+title('C uptake')
+xlabel('timesteps')
+ylabel('mg C /cm^3 soil/timestep')
+% xlim([4371240,4380000])
+savefig(UPT_C.fig)
+
+figure
+plot(Growth_C,'LineWidth',3)
+legend('seasonal model')
+title('C growth')
+xlabel('timesteps')
+ylabel('mg C /cm^3 soil/timestep')
+% xlim([4371240,4380000])
+savefig(Growth_C.fig)
+
+figure
+plot(Growth_C,'LineWidth',3)
+legend('seasonal model')
+title('C growth')
+xlabel('timesteps')
+ylabel('mg C /cm^3 soil/timestep')
+% xlim([4371240,4380000])
+savefig(Growth_C.fig)
+
+figure
+plot(overflow_C,'LineWidth',3)
+legend('seasonal model')
+title('overflow C')
+xlabel('timesteps')
+ylabel('mg C /cm^3 soil/timestep')
+% xlim([4371240,4380000])
+savefig(overflow_C.fig)
+
 
 toc
 
