@@ -9,7 +9,7 @@ T = rep(F1, 1000);
  SU1 = rep([0 0 0 0 0 0.0002 0.0002 0.0002 0 0 0 0],730); %%hemlock
  SU = rep(SU1, 1000); %resp =  7.6829
  NO = rep(0.00005,8760000); %no seasonality %resp = 7.6072
-E= EH;%rep(0,8760000); %resp = 7.2593 mgC/cm3/yr
+E= NO;%rep(0,8760000); %resp = 7.2593 mgC/cm3/yr
 %Code runs base model under normal and warmed temperatures
 tic
 %used parameter values from Allison et al. 2010 unless otherwise noted, N
@@ -171,73 +171,89 @@ end
 
 %%will create figures for each pool over time 
 
-figure
-plot(MIC_C,'LineWidth',3)
-legend('seasonal model')
-title('Microbial Biomass response to warming')
-xlabel('timesteps')
-ylabel('g C/cm^3 soil') %in grams???
-%xlim([4371240,4380000])
-
-
-figure
-plot(EC,'LineWidth',3)
-legend('seasonal model')
-title('Enzyme pool response to warming')
-xlabel('timesteps')
-ylabel('g C/cm^3 soil')
-%xlim([4371240,4380000])
-
-
-figure
-plot(SOC,'LineWidth',3)
-legend('seasonal model')
-title('SOC response to warming')
-xlabel('timesteps')
-ylabel('g C/cm^3 soil')
-%xlim([4371240,4380000])
-
-figure
-plot(SON,'LineWidth',3)
-legend('seasonal model')
-title('SON response to warming')
-xlabel('timesteps')
-ylabel('g N/cm^3 soil')
-%xlim([4371240,4380000])
-
-figure
-plot(DOC,'LineWidth',3)
-legend('seasonal model')
-title('DOC response to warming')
-xlabel('timesteps')
-ylabel('g C/cm^3 soil')
-%xlim([4371240,4380000])
-
-figure
-plot(DON,'LineWidth',3)
-legend('seasonal model')
-title('DON response to warming')
-xlabel('timesteps')
-ylabel('g N/cm^3 soil')
-%xlim([4371240,4380000])
-
-figure
-plot(CMIN,'LineWidth',3)
-legend('seasonal model')
-title('Soil respiration response to warming')
-xlabel('timesteps')
-ylabel('g C/cm^3 soil/timestep')
-%xlim([4371240,4380000])
-
-figure
-plot(NMIN,'LineWidth',3)
-legend('seasonal model')
-title('N mineralization response to warming')
-xlabel('timesteps')
-ylabel('g N /cm^3 soil/timestep')
-%xlim([4371240,4380000])
+% figure
+% plot(MIC_C,'LineWidth',3)
+% legend('seasonal model')
+% title('Microbial Biomass')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil') 
+% xlim([Nt-8760,Nt])
+% 
+% 
+% figure
+% plot(EC,'LineWidth',3)
+% legend('seasonal model')
+% title('Enzyme pool')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil')
+% xlim([Nt-8760,Nt])
+% 
+% 
+% figure
+% plot(SOC,'LineWidth',3)
+% legend('seasonal model')
+% title('SOC')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(SON,'LineWidth',3)
+% legend('seasonal model')
+% title('SON')
+% xlabel('timesteps')
+% ylabel('mg N/cm^3 soil')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(DOC,'LineWidth',3)
+% legend('seasonal model')
+% title('DOC')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(DON,'LineWidth',3)
+% legend('seasonal model')
+% title('DON')
+% xlabel('timesteps')
+% ylabel('mg N/cm^3 soil')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(CMIN,'LineWidth',3)
+% legend('seasonal model')
+% title('Soil respiration')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil/timestep')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(NMIN,'LineWidth',3)
+% legend('seasonal model')
+% title('N mineralization')
+% xlabel('timesteps')
+% ylabel('mg N /cm^3 soil/timestep')
+% xlim([Nt-8760,Nt])
+% 
+% figure
+% plot(T,'LineWidth',3)
+% legend('seasonal model')
+% title('Temperature')
+% xlabel('timesteps')
+% ylabel('degree C')
+% xlim([Nt-8760,Nt])
 
 toc
 
-resp = sum(CMIN(8751240:8760000,1));  %in mg/cm3/yr
+resp = sum(CMIN(8751240:8760000,1));%in mg/cm3/yr
+nmin = sum(NMIN(8751240:8760000,1));
+soc = mean(SOC(8760000,1));
+son = mean(SON(8751240:8760000,1));
+ec = mean(EC(8751240:8760000,1));
+doc = mean(DOC(8751240:8760000,1));
+don = mean(DON(8751240:8760000,1));
+mic_c = mean(MIC_C(8751240:8760000,1));
+mic_n = mean(MIC_N(8751240:8760000,1));
 
