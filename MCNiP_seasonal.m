@@ -4,15 +4,6 @@ T = rep(F1, 2000);
 % Litter_C = rep([0 0 0 0 0 0 0 0 0.002 0.002 0.002 0], 730); %annual sum is 4.38 mgC/cm3
 % Litter_C = rep(Litter_C, 2000); 
 
-E=rep(0,Nt); %resp = 7.5940
-
-% EO1 = rep([0 0 0.0002 0.0002 0.0002 0 0 0 0 0 0 0],730); %%oaks %%mgC/cm3/hr based on live fine root biomass* exudation rate
-% EO = rep(EO1, 2000); %resp = 7.5781
-% EH1 = rep([0 0 0 0 0 0 0 0.0002 0.0002 0.0002 0 0],730); %%hemlock
-% EH = rep(EH1, 2000); %resp = 7.6531
-% SU1 = rep([0 0 0 0 0 0.0002 0.0002 0.0002 0 0 0 0],730); %%hemlock
-% SU = rep(SU1, 2000); %resp = 7.673047
-% NO = rep(0.00005,Nt); %no seasonality
 % E = NO;
 
 %Code runs base model under normal and warmed temperatures
@@ -31,6 +22,7 @@ a = 0.5; %fraction of enzyme pool acting on SOC pool(1-a = fraction of enz pool 
 
 Litter_C = rep(0.0005,Nt);
 Litter_N = Litter_C/CN_s;
+E=rep(0,Nt); 
 
 r_death = 0.00015;%Microbial biomass turnover rate, hours-1
 r_ECloss = 0.001;%enzyme pool turnover rate hours-1
