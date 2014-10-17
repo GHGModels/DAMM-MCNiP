@@ -62,8 +62,8 @@ BD = 0.8; %bulk density in g/cm3
 PD = 2.52; %particle density in g/cm3
 soilM = 0.229; %initial soil moisture in cm3 H20/ cm3 soil
 porosity = 1 - BD/PD; 
-%frac = 0.000414;
-%Dliq = 3.17;
+frac = 26.2684; %0.000414; %Temporary value for testing
+Dliq = 3.17;
 
 %Variables, 
 %%this section of code creates empty matrices so that values at each timestep can be saved during model runs, I save all the variables,
@@ -81,6 +81,8 @@ DON = zeros(Nt,1); %DON
 CMIN = zeros(Nt,1); %C mineralized
 NMIN = zeros(Nt,1); %N mineralized
 O2 = zeros(Nt,1); %concentration of O2
+sol_SOC = zeros(Nt,1); %SOC that can be solubilized
+sol_SON = zeros(Nt,1); %SON that can be solubilized
 avail_SOC = zeros(Nt,1); %available SOC
 avail_SON = zeros(Nt,1); %available SON
 
@@ -116,8 +118,10 @@ O2(i) = Dgas * O2airfrac * ((porosity-soilM)^(4/3));
 
 %this section will calculate available substrate for depolymerization and
 %uptake
-avail_SOC(i) = SOC(i); %maybe need to initialize this pool -try it first
-avail_SON(i) = SON(i);
+sol_SOC(i) = frac*SOC(i);
+sol_SON(i) = frac*SON(i);
+avail_SOC(i) = Dliq*(soilM^3)*sol_SOC(i); %maybe need to initialize this pool -try it first
+avail_SON(i) = Dliq*(soilM^3)*sol_SON(i);
     
 %this section of code will calculate vmax  Km and CUE at 20C and 25C. 
 % Equations for kinetic temperature relationships
