@@ -1,5 +1,5 @@
-Yr = 5000;
-T = 25;
+Yr = 3000;
+T = 20;
 
 %Code runs base model under normal and warmed temperatures
 tic
@@ -20,9 +20,9 @@ r_death = 0.00015;%Microbial biomass turnover rate, hours-1
 r_ECloss = 0.001;%enzyme pool turnover rate hours-1
 MIC_to_SOC  = 0.5; %proportion of dead microbial biomass that re-enters SOC pool, (1-MICtoSOC = proporation of microbial biomass that re-enters DOC pool)
 MIC_to_SON = 0.5; %proportion of dead microbial biomass that re-enters SON pool, (1-MICtoSOC = proporation of microbial biomass that re-enters DON pool)
-DOC_input = 0.0005;%external C input into DOC pool(e.g. root exudates,root turnover) mg C cm-3 soil hour-1
-DON_input = 0.0005/CN_s;%external N input into DON pool(e.g.root turnover)mg N cm-3 soil hour-1 
-Litter_C =  0.0005; %external C input into SOC pool(e.g. leaf litter, FWD) mg C cm-3 soil hour-1
+DOC_input = 0.0005;%0.0005;%external C input into DOC pool(e.g. root exudates,root turnover) mg C cm-3 soil hour-1
+DON_input = DOC_input/CN_s;%external N input into DON pool(e.g.root turnover)mg N cm-3 soil hour-1 
+Litter_C = 0.0005; %external C input into SOC pool(e.g. leaf litter, FWD) mg C cm-3 soil hour-1
 Litter_N = Litter_C/CN_s;%external N input into SON pool (e.g.leaf litter, FWD) mg N cm-3 soil hour-1, 
 %%not sure if this is the correct stoichiometry for litter inputs
 
@@ -44,7 +44,6 @@ b_CUE = 0.63;%intercept, mg C mg-1 soil
 m_CUE=-0.016;%slope, degree-1
 
 %DAMM constants
-%Km_UPT_O2 = 0.121; %cm3 O2/cm3 air
 Km_O2 = 0.121; %cm3 O2/cm3 air
 Dgas = 1.67; 
 O2airfrac = 0.209; % L O2/ L air 
@@ -52,7 +51,7 @@ BD = 0.8; %bulk density in g/cm3
 PD = 2.52; %particle density in g/cm3
 soilM = 0.229; %initial soil moisture in cm3 H20/ cm3 soil
 porosity = 1 - BD/PD; 
-frac = 26.2467; %0.000414; %Temporary value for testing
+frac = 0.000414;%26.2467; %0.000414; %Temporary value for testing
 Dliq = 3.17;
 
 %Variables, 
@@ -125,7 +124,7 @@ km_upt_N = km_UPT_C;
 
 %depolymerization kinetics (base model assumes C and N kinetics are equal)
 Vmax_C = Vmax_0 * exp(-Ea_up./(R.*(T + 273)));
-Km_C = (Km_slope * T) + Km_0;
+Km_C = 0.008;%(Km_slope * T) + Km_0;
 
 Vmax_N = Vmax_C; 
 Km_N =  Km_C;
@@ -272,6 +271,7 @@ legend('seasonal model')
 title('overflow C')
 xlabel('timesteps')
 ylabel('mg C /cm^3 soil/timestep')
+
 
 
 
