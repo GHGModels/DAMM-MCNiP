@@ -1,5 +1,6 @@
 Yr = 3000;
 T = 20;
+soilM = 0.3; %0.229; %initial soil moisture in cm3 H20/ cm3 soil
 
 %Code runs base model under normal and warmed temperatures
 tic
@@ -36,12 +37,12 @@ m_UPT_C = 0.01;%0.1;%slope, mg cm-3
 %Depolymerization kinetic temperature relationship parameters
 Vmax_0      = 100000000;%;%Arrhenius constantmg SOM cm-3 soil hours-1
 Ea_up       =  48; %activation energy for arrhenius equation, kJ mol-1 
-Km_0        = 500; %intercept, mg cm-3
-Km_slope    = 5; %slope,mg cm-3 degree-1
+Km_0        = 0.0015;%500; %intercept, mg cm-3
+Km_slope    = 0.00005;%5; %slope,mg cm-3 degree-1
 
 %Coefficients for linear relationship between temperature and CUE
-b_CUE = 0.63;%intercept, mg C mg-1 soil
-m_CUE=-0.016;%slope, degree-1
+%b_CUE = 0.63;%intercept, mg C mg-1 soil
+%m_CUE=-0.016;%slope, degree-1
 
 %DAMM constants
 Km_O2 = 0.121; %cm3 O2/cm3 air
@@ -49,9 +50,8 @@ Dgas = 1.67;
 O2airfrac = 0.209; % L O2/ L air 
 BD = 0.8; %bulk density in g/cm3
 PD = 2.52; %particle density in g/cm3
-soilM = 0.229; %initial soil moisture in cm3 H20/ cm3 soil
 porosity = 1 - BD/PD; 
-frac = 0.000414;%26.2467; %0.000414; %Temporary value for testing
+frac = 0.000414;%26.2467; %0.000414;
 Dliq = 3.17;
 
 %Variables, 
@@ -117,14 +117,14 @@ avail_SON(i) = Dliq*(soilM^3)*sol_SON(i);
 %uptake kinetics(base model assumes C and N kinetics are equal)
 vmax_UPT_C = A_UPT_C .* exp(-Ea_UPT_C./(R.*(T+273))); %temp sensitive according to arrhenius
 km_UPT_C = b_UPT_C + m_UPT_C * T; %linear function of temp
-CUE = b_CUE + m_CUE * T; %carbon use efficiency, linear function of temp
+CUE = 0.31; %b_CUE + m_CUE * T; %carbon use efficiency, linear function of temp
 
 vmax_upt_N = vmax_UPT_C;
 km_upt_N = km_UPT_C; 
 
 %depolymerization kinetics (base model assumes C and N kinetics are equal)
 Vmax_C = Vmax_0 * exp(-Ea_up./(R.*(T + 273)));
-Km_C = 0.008;%(Km_slope * T) + Km_0;
+Km_C = 0.0025;%(Km_slope * T) + Km_0; %0.0025;
 
 Vmax_N = Vmax_C; 
 Km_N =  Km_C;
@@ -188,19 +188,19 @@ end
 
 %will create figures for each pool over time 
 
-figure
-plot(MIC_C,'LineWidth',3)
-legend('seasonal model')
-title('Microbial Biomass')
-xlabel('timesteps')
-ylabel('mg C/cm^3 soil') 
-
-figure
-plot(EC,'LineWidth',3)
-legend('seasonal model')
-title('Enzyme pool')
-xlabel('timesteps')
-ylabel('mg C/cm^3 soil')
+% figure
+% plot(MIC_C,'LineWidth',3)
+% legend('seasonal model')
+% title('Microbial Biomass')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil') 
+% 
+% figure
+% plot(EC,'LineWidth',3)
+% legend('seasonal model')
+% title('Enzyme pool')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil')
 
 figure
 plot(SOC,'LineWidth',3)
@@ -209,68 +209,68 @@ title('SOC')
 xlabel('timesteps')
 ylabel('mg C/cm^3 soil')
 
-figure
-plot(SON,'LineWidth',3)
-legend('seasonal model')
-title('SON')
-xlabel('timesteps')
-ylabel('mg N/cm^3 soil')
+% figure
+% plot(SON,'LineWidth',3)
+% legend('seasonal model')
+% title('SON')
+% xlabel('timesteps')
+% ylabel('mg N/cm^3 soil')
+% 
+% figure
+% plot(DOC,'LineWidth',3)
+% legend('seasonal model')
+% title('DOC')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil')
 
-figure
-plot(DOC,'LineWidth',3)
-legend('seasonal model')
-title('DOC')
-xlabel('timesteps')
-ylabel('mg C/cm^3 soil')
+% figure
+% plot(DON,'LineWidth',3)
+% legend('seasonal model')
+% title('DON')
+% xlabel('timesteps')
+% ylabel('mg N/cm^3 soil')
+% 
+% figure
+% plot(CMIN,'LineWidth',3)
+% legend('seasonal model')
+% title('Soil respiration')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil/timestep')
 
-figure
-plot(DON,'LineWidth',3)
-legend('seasonal model')
-title('DON')
-xlabel('timesteps')
-ylabel('mg N/cm^3 soil')
-
-figure
-plot(CMIN,'LineWidth',3)
-legend('seasonal model')
-title('Soil respiration')
-xlabel('timesteps')
-ylabel('mg C/cm^3 soil/timestep')
-
-figure
-plot(NMIN,'LineWidth',3)
-legend('seasonal model')
-title('N mineralization')
-xlabel('timesteps')
-ylabel('mg N /cm^3 soil/timestep')
-
-figure
-plot(DECOM_C,'LineWidth',3)
-legend('seasonal model')
-title('C decomposition')
-xlabel('timesteps')
-ylabel('mg C /cm^3 soil/timestep')
-
-figure
-plot(UPT_C,'LineWidth',3)
-legend('seasonal model')
-title('C uptake')
-xlabel('timesteps')
-ylabel('mg C /cm^3 soil/timestep')
-
-figure
-plot(Growth_C,'LineWidth',3)
-legend('seasonal model')
-title('C growth')
-xlabel('timesteps')
-ylabel('mg C /cm^3 soil/timestep')
-
-figure
-plot(overflow_C,'LineWidth',3)
-legend('seasonal model')
-title('overflow C')
-xlabel('timesteps')
-ylabel('mg C /cm^3 soil/timestep')
+% figure
+% plot(NMIN,'LineWidth',3)
+% legend('seasonal model')
+% title('N mineralization')
+% xlabel('timesteps')
+% ylabel('mg N /cm^3 soil/timestep')
+% % 
+% figure
+% plot(DECOM_C,'LineWidth',3)
+% legend('seasonal model')
+% title('C decomposition')
+% xlabel('timesteps')
+% ylabel('mg C /cm^3 soil/timestep')
+% % 
+% figure
+% plot(UPT_C,'LineWidth',3)
+% legend('seasonal model')
+% title('C uptake')
+% xlabel('timesteps')
+% ylabel('mg C /cm^3 soil/timestep')
+% 
+% figure
+% plot(Growth_C,'LineWidth',3)
+% legend('seasonal model')
+% title('C growth')
+% xlabel('timesteps')
+% ylabel('mg C /cm^3 soil/timestep')
+% 
+% figure
+% plot(overflow_C,'LineWidth',3)
+% legend('seasonal model')
+% title('overflow C')
+% xlabel('timesteps')
+% ylabel('mg C /cm^3 soil/timestep')
 
 
 
@@ -279,12 +279,18 @@ toc
 
 resp = sum(CMIN(Nt-8760:Nt,1));  %in mg/cm3/yr
 nmin = sum(NMIN(Nt-8760:Nt,1));  %in mg/cm3/yr
-micc = MIC_C(Nt,1)
-micn = MIC_N(Nt,1)
-soc = SOC(Nt,1)
-son = SON(Nt,1)
-doc = DOC(Nt,1)
-don = DON(Nt,1)
-ec = EC(Nt,1) 
+decomp = sum(DECOM_C(Nt-8760:Nt,1));
+avail = avail_SOC(Nt,1);
+upt = sum(UPT_C(Nt-8760:Nt,1));
+micc = MIC_C(Nt,1);
+micn = MIC_N(Nt,1);
+soc = SOC(Nt,1);
+son = SON(Nt,1);
+doc = DOC(Nt,1);
+don = DON(Nt,1);
+ec = EC(Nt,1);
+resp
+nmin
+
 
 
