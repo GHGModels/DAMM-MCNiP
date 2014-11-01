@@ -1,13 +1,13 @@
 Yr = 3000;
 T = 20;
-soilM = 0.3; %0.229; %initial soil moisture in cm3 H20/ cm3 soil
+soilM = 0.229; %0.229; %initial soil moisture in cm3 H20/ cm3 soil
 
 %Code runs base model under normal and warmed temperatures
 tic
 %used parameter values from Allison et al. 2010 unless otherwise noted, N
 %these parameter values are the default values for the base model
 dt  = 0.1; %timestep interval units = hours
-Nt =  8760*Yr;%number of timesteps model will run for
+Nt =  8760*Yr;% number of timesteps model will run for
 E=0; 
 R = 0.008314; %gas constant used in Arrhenius equation (kJ mol-1 degree-1)
 CN_s = 27.6;%C:N of SOM as given by Schimel & Weintraub 2003
@@ -33,6 +33,7 @@ A_UPT_C  = 100000000; %Arrhenius constant for uptake C vmax unit(mg DOC cm-3 soi
 Ea_UPT_C= 48;%activation energy for arrhenius equation( kJ mol-1)
 b_UPT_C = 0.1;%0.01; %intercept, mg cm-3 degree-1
 m_UPT_C = 0.01;%0.1;%slope, mg cm-3
+
 
 %Depolymerization kinetic temperature relationship parameters
 Vmax_0      = 100000000;%;%Arrhenius constantmg SOM cm-3 soil hours-1
@@ -265,12 +266,12 @@ ylabel('mg C/cm^3 soil')
 % xlabel('timesteps')
 % ylabel('mg C /cm^3 soil/timestep')
 % 
-% figure
-% plot(overflow_C,'LineWidth',3)
-% legend('seasonal model')
-% title('overflow C')
-% xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
+figure
+plot(overflow_C,'LineWidth',3)
+legend('seasonal model')
+title('overflow C')
+xlabel('timesteps')
+ylabel('mg C /cm^3 soil/timestep')
 
 
 
