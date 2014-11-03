@@ -13,11 +13,11 @@
 # Give the job a name (default: script name)
 #$ -N dmc
 #Add dollar sign below to run as command if need some minimum memory
-# -l mem_total=126G
+#$ -l mem_total=126G
 #
 # -o file.txt
 #
 ## end of qsub options
-matlab -nodisplay -singleCompThread -r MCNiP_seasonal
+matlab -nodisplay -singleCompThread -r MCNiP_TMloop.m
 
 
