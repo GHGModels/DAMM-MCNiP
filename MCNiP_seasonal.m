@@ -1,6 +1,10 @@
 Yr = 3000;
-T = 10;
-soilM = 0.1; %0.229; %initial soil moisture in cm3 H20/ cm3 soil
+
+F = xlsread ('fisher_noleap_2012.xlsx');
+F1 = rep(F', 24);
+T = rep(F1, Yr);
+
+soilM = 0.229; %initial soil moisture in cm3 H20/ cm3 soil
 
 %Code runs base model under normal and warmed temperatures
 tic
@@ -35,19 +39,17 @@ Litter_N = Litter_C/CN_s;%external N input into SON pool (e.g.leaf litter, FWD) 
 %uptake kinetic temperature relationship parameters
 A_UPT_C  = 100000000; %Arrhenius constant for uptake C vmax unit(mg DOC cm-3 soil hours-1)
 Ea_UPT_C= 48;%activation energy for arrhenius equation( kJ mol-1)
-b_UPT_C = 0.1;%0.01; %intercept, mg cm-3 degree-1
-m_UPT_C = 0.01;%0.1;%slope, mg cm-3
-
+km_UPT_C = 0.3;
+km_upt_N = km_UPT_C;
 
 %Depolymerization kinetic temperature relationship parameters
 Vmax_0      = 100000000;%;%Arrhenius constantmg SOM cm-3 soil hours-1
 Ea_up       =  48; %activation energy for arrhenius equation, kJ mol-1 
-Km_0        = 0.0015;%500; %intercept, mg cm-3
-Km_slope    = 0.00005;%5; %slope,mg cm-3 degree-1
+Km_C = 0.0025;
+Km_N =  Km_C;
 
-%Coefficients for linear relationship between temperature and CUE
-%b_CUE = 0.63;%intercept, mg C mg-1 soil
-%m_CUE=-0.016;%slope, degree-1
+%CUE
+CUE = 0.31; 
 
 %DAMM constants
 Km_O2 = 0.121; %cm3 O2/cm3 air
@@ -128,19 +130,12 @@ DON_rs(i) = Dliq*(soilM^3)*DON(i);
 %this section of code will calculate vmax  Km and CUE at 20C and 25C. 
 % Equations for kinetic temperature relationships
 %uptake kinetics(base model assumes C and N kinetics are equal)
-vmax_UPT_C = A_UPT_C .* exp(-Ea_UPT_C./(R.*(T+273))); %temp sensitive according to arrhenius
-km_UPT_C = b_UPT_C + m_UPT_C * T; %linear function of temp
-CUE = 0.31; %b_CUE + m_CUE * T; %carbon use efficiency, linear function of temp
-
+vmax_UPT_C = A_UPT_C .* exp(-Ea_UPT_C./(R.*(T(i)+273))); %temp sensitive according to arrhenius
 vmax_upt_N = vmax_UPT_C;
-km_upt_N = km_UPT_C; 
 
 %depolymerization kinetics (base model assumes C and N kinetics are equal)
-Vmax_C = Vmax_0 * exp(-Ea_up./(R.*(T + 273)));
-Km_C = 0.0025;%(Km_slope * T) + Km_0; %0.0025;
-
+Vmax_C = Vmax_0 * exp(-Ea_up./(R.*(T(i) + 273)));
 Vmax_N = Vmax_C; 
-Km_N =  Km_C;
 
 %This section of code calculates the changes in pool sizes over model time
 %using a series of differential equations
