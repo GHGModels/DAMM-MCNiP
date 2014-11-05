@@ -120,11 +120,11 @@ for i = 1:Nt
 O2(i) = Dgas * O2airfrac * ((porosity-soilM(k))^(4/3));
 
 %this section will calculate available substrate and enzymes at reaction site for depolymerization
-sol_SOC(i) = frac*SOC(i);
-sol_SON(i) = frac*SON(i);
+sol_SOC(i) = Dliq*(soilM(k)^3)*frac*SOC(i);
+sol_SON(i) = Dliq*(soilM(k)^3)*frac*SON(i);
 
-E_rs(i) = Dliq*(soilM(k)^3)*EC(i); 
-E_rs(i) = Dliq*(soilM(k)^3)*EC(i);
+%E_rs(i) = Dliq*(soilM(k)^3)*EC(i); 
+%E_rs(i) = Dliq*(soilM(k)^3)*EC(i);
 
 %this section will calculate available DOC and DON at reaction site for uptake
 DOC_rs(i) = Dliq*(soilM(k)^3)*DOC(i);
@@ -187,8 +187,8 @@ Km_N =  Km_C;
             EC(i+1) = EC(i) +  dt * (EPROD(i) - ELOSS(i));%enzyme pool
             
             %Depolymerization inputs,derived from Allison et al 2010.
-            DECOM_C(i) = Vmax_C .* a*E_rs(i) .*sol_SOC(i) ./(Km_E + E_rs(i)); %depolymerization of SOC by enzymes
-            DECOM_N(i) = Vmax_N.*(1-a)*E_rs(i).*sol_SON(i)./(Km_E + E_rs(i)); %depolymerization of SON by enzymes
+            DECOM_C(i) = Vmax_C .* a*EC(i) .*sol_SOC(i) ./(Km_C + sol_SOC(i)); %depolymerization of SOC by enzymes
+            DECOM_N(i) = Vmax_N.*(1-a)*EC(i).*sol_SON(i)./(Km_N + sol_SON(i)); %depolymerization of SON by enzymes
             
             %SOM pools
             SOC(i+1) = SOC(i) + dt * (Litter_C + DEATH_C(i) * MIC_to_SOC - DECOM_C(i));
