@@ -3,7 +3,7 @@ T = [5 10 15 20 25];
 soilM = [0.1 0.2 0.3 0.4 0.5 0.6]; %0.229; %initial soil moisture in cm3 H20/ cm3 soil
 
 %Code runs base model under normal and warmed temperatures
-tic
+tic 
 %used parameter values from Allison et al. 2010 unless otherwise noted, N
 %these parameter values are the default values for the base model
 dt  = 0.1; %timestep interval units = hours
@@ -58,6 +58,7 @@ PD = 2.52; %particle density in g/cm3
 porosity = 1 - BD/PD; 
 frac = 0.000414;%26.2467; %0.000414;
 Dliq = 3.17;
+Km_E = 0.0012;
 
 %Variables, 
 %%this section of code creates empty matrices so that values at each timestep can be saved during model runs, I save all the variables,
@@ -95,6 +96,9 @@ Growth = zeros(Nt,1); %Amount of new biomass grown
 DEATH_C = zeros(Nt,1); %Amount of microbial biomass C that turned over
 DEATH_N = zeros(Nt,1);%Amount of microbial biomass N that turned over
 overflow_C = zeros(Nt,1);%microbial overflow C metabolism
+E_rs = zeros(Nt,1);   %enzyme at the reaction site
+DOC_rs = zeros(Nt,1); %DOC at the uptake reaction site
+DON_rs = zeros(Nt,1); %DON at the uptake reaction site
  
 %Equilibrium Initial conditions, 
 %determined after spinning up model for 5000 years, these are the inital values for each of the pools at time=0. 
@@ -115,14 +119,17 @@ for i = 1:Nt
 %this section will calculate O2 concentration at time i
 O2(i) = Dgas * O2airfrac * ((porosity-soilM(k))^(4/3));
 
-%this section will calculate available substrate for depolymerization and
-%uptake
+%this section will calculate available substrate and enzymes at reaction site for depolymerization
 sol_SOC(i) = frac*SOC(i);
 sol_SON(i) = frac*SON(i);
 
-avail_SOC(i) = Dliq*(soilM(k)^3)*sol_SOC(i); %maybe need to initialize this pool -try it first
-avail_SON(i) = Dliq*(soilM(k)^3)*sol_SON(i);
-    
+E_rs(i) = Dliq*(soilM(k)^3)*EC(i); 
+E_rs(i) = Dliq*(soilM(k)^3)*EC(i);
+
+%this section will calculate available DOC and DON at reaction site for uptake
+DOC_rs(i) = Dliq*(soilM(k)^3)*DOC(i);
+DON_rs(i) = Dliq*(soilM(k)^3)*DON(i);   
+
 %this section of code will calculate vmax  Km and CUE at 20C and 25C. 
 % Equations for kinetic temperature relationships
 %uptake kinetics(base model assumes C and N kinetics are equal)
@@ -142,11 +149,10 @@ Km_N =  Km_C;
 
 %This section of code calculates the changes in pool sizes over model time
 %using a series of differential equations
-
-            UPT_C(i) = MIC_C(i) .* vmax_UPT_C *DOC(i) ./ (km_UPT_C + DOC(i)); %microbial C uptake,michaelis-menton dynamics
+ UPT_C(i) = MIC_C(i) .* vmax_UPT_C *(DOC_rs(i) ./ (km_UPT_C + DOC_rs(i)))*O2(i)/(Km_O2 + O2(i)); %microbial C uptake,michaelis-menton dynamics
             CMIN(i) =  UPT_C(i) .* (1-CUE); %C mineralization
             
-            UPT_N(i) = MIC_N(i) .* vmax_upt_N *DON(i) ./ (km_upt_N + DON(i)); %microbial N uptake michaelis-menton dynamics
+            UPT_N(i) = MIC_N(i) .* vmax_upt_N *(DON_rs(i) ./ (km_upt_N + DON_rs(i)))*O2(i)/(Km_O2 + O2(i)); %microbial N uptake michaelis-menton dynamics
             DEATH_C(i) = r_death .* MIC_C(i); %microbial C turnover, first order process
             DEATH_N(i) = r_death .* MIC_N(i); %microbial N turnover,first order process
             
@@ -181,8 +187,8 @@ Km_N =  Km_C;
             EC(i+1) = EC(i) +  dt * (EPROD(i) - ELOSS(i));%enzyme pool
             
             %Depolymerization inputs,derived from Allison et al 2010.
-            DECOM_C(i) = Vmax_C .* a*EC(i) .* (avail_SOC(i) ./(Km_C + avail_SOC(i)))*O2(i)/(Km_O2 + O2(i)); %depolymerization of SOC by enzymes
-            DECOM_N(i) = Vmax_N.*(1-a)*EC(i).*(avail_SON(i)./(Km_N + avail_SON(i)))*O2(i)/(Km_O2 + O2(i)); %depolymerization of SON by enzymes
+            DECOM_C(i) = Vmax_C .* a*E_rs(i) .*sol_SOC(i) ./(Km_E + E_rs(i)); %depolymerization of SOC by enzymes
+            DECOM_N(i) = Vmax_N.*(1-a)*E_rs(i).*sol_SON(i)./(Km_E + E_rs(i)); %depolymerization of SON by enzymes
             
             %SOM pools
             SOC(i+1) = SOC(i) + dt * (Litter_C + DEATH_C(i) * MIC_to_SOC - DECOM_C(i));
