@@ -19,10 +19,6 @@ p = 0.5; %fraction of  C  initally allocated to enz production
 q = 0.5; %fraction of N initally  allocated to enz production
 a = 0.5; %fraction of enzyme pool acting on SOC pool(1-a = fraction of enz pool acting on SON pool)
 
-Litter_C = rep(0.0005,Nt);
-Litter_N = Litter_C/CN_s;
-E=rep(0,Nt); 
-
 r_death = 0.00015;%Microbial biomass turnover rate, hours-1
 r_ECloss = 0.001;%enzyme pool turnover rate hours-1
 MIC_to_SOC  = 0.5; %proportion of dead microbial biomass that re-enters SOC pool, (1-MICtoSOC = proporation of microbial biomass that re-enters DOC pool)
@@ -205,7 +201,7 @@ end
 % title('Microbial Biomass')
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil') 
-
+% 
 % 
 % figure
 % plot(EC,'LineWidth',3)
@@ -213,21 +209,21 @@ end
 % title('Enzyme pool')
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil')
-
+% 
 figure
 plot(SOC,'LineWidth',3)
 legend('seasonal model')
 title('SOC')
 xlabel('timesteps')
 ylabel('mg C/cm^3 soil')
-
+% 
 % figure
 % plot(SON,'LineWidth',3)
 % legend('seasonal model')
 % title('SON')
 % xlabel('timesteps')
 % ylabel('mg N/cm^3 soil')
-
+% 
 % 
 % figure
 % plot(DOC,'LineWidth',3)
@@ -235,7 +231,7 @@ ylabel('mg C/cm^3 soil')
 % title('DOC')
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil')
-
+% 
 % figure
 % plot(DON,'LineWidth',3)
 % legend('seasonal model')
@@ -249,7 +245,7 @@ ylabel('mg C/cm^3 soil')
 % title('Soil respiration')
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil/timestep')
-
+% 
 % figure
 % plot(NMIN,'LineWidth',3)
 % legend('seasonal model')
@@ -278,13 +274,13 @@ ylabel('mg C/cm^3 soil')
 % xlabel('timesteps')
 % ylabel('mg C /cm^3 soil/timestep')
 % 
-figure
-plot(overflow_C,'LineWidth',3)
-legend('seasonal model')
-title('overflow C')
-xlabel('timesteps')
-ylabel('mg C /cm^3 soil/timestep')
-
+% figure
+% plot(overflow_C,'LineWidth',3)
+% legend('seasonal model')
+% title('overflow C')
+% xlabel('timesteps')
+% ylabel('mg C /cm^3 soil/timestep')
+% 
 
 toc
 

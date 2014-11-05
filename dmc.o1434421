@@ -1,0 +1,24 @@
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2013 The MathWorks, Inc.
+                    R2013a (8.1.0.604) 64-bit (glnxa64)
+                             February 15, 2013
+
+ 
+To get started, type one of these: helpwin, helpdesk, or demo.
+For product information, visit www.mathworks.com.
+ 
+>> [Warning: Objects of graph2d.lineseries class exist - not clearing this class or
+any of its superclasses] 
+[Warning: Objects of scribe.legend class exist - not clearing this class or any
+of its superclasses] 
+[Warning: Objects of graphics.panbehavior class exist - not clearing this class
+or any of its superclasses] 
+[Warning: Objects of graphics.zoombehavior class exist - not clearing this class
+or any of its superclasses] 
+[Warning: Objects of graphics.rotate3dbehavior class exist - not clearing this
+class or any of its superclasses] 
+[Warning: Objects of graphics.datacursorbehavior class exist - not clearing this
+class or any of its superclasses] 
+[Warning: Objects of graphics.ploteditbehavior class exist - not clearing this
+class or any of its superclasses] 

@@ -127,7 +127,7 @@ avail_SON(i) = Dliq*(soilM(k)^3)*sol_SON(i);
 % Equations for kinetic temperature relationships
 %uptake kinetics(base model assumes C and N kinetics are equal)
 vmax_UPT_C = A_UPT_C .* exp(-Ea_UPT_C./(R.*(T(j)+273))); %temp sensitive according to arrhenius
-km_UPT_C = b_UPT_C + m_UPT_C * T(j); %linear function of temp
+km_UPT_C = 0.3; %b_UPT_C + m_UPT_C * T(j); %linear function of temp
 CUE = 0.31; %b_CUE + m_CUE * T; %carbon use efficiency, linear function of temp
 
 vmax_upt_N = vmax_UPT_C;

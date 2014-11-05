@@ -18,6 +18,6 @@
 # -o file.txt
 #
 ## end of qsub options
-matlab -nodisplay -singleCompThread -r MCNiP_TMloop.m
+matlab -nodisplay -singleCompThread -r MCNiP_TMloop
 
 
