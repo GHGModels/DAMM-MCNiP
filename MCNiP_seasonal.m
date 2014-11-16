@@ -1,18 +1,32 @@
-Yr = 3000;
+% Yr = 3000;
+%  
+% F = xlsread ('fisher_noleap_2012.xlsx');
+% F1 = rep(F', 24);
+% T = rep(F1, Yr);
 
-F = xlsread ('fisher_noleap_2012.xlsx');
-F1 = rep(F', 24);
-T = rep(F1, Yr);
 
-soilM = 0.229; %initial soil moisture in cm3 H20/ cm3 soil
+F = xlsread('hformat.xlsx');
+T = F(:,1);
 
+%soilM1 = rep(0.229,41049); %initial soil moisture in cm3 H20/ cm3 soil
+soilM = F(:,2);
+BD = 0.8; %bulk density in g/cm3
+PD = 2.52; %particle density in g/cm3
+sat = 1-BD/PD;
+for i = 1:length(soilM)
+ if soilM(i) >= sat;
+                soilM(i) = sat;
+            else 
+               soilM(i) = soilM(i);
+ end
+end
 %Code runs base model under normal and warmed temperatures
 tic
 %used parameter values from Allison et al. 2010 unless otherwise noted, N
 %these parameter values are the default values for the base model
 dt  = 0.1; %timestep interval units = hours
 
-Nt =  8760*Yr;% number of timesteps model will run for
+Nt =  length(T); %8760*Yr;% number of timesteps model will run for
 E=0; 
 
 R = 0.008314; %gas constant used in Arrhenius equation (kJ mol-1 degree-1)
@@ -39,17 +53,20 @@ Litter_N = Litter_C/CN_s;%external N input into SON pool (e.g.leaf litter, FWD) 
 %uptake kinetic temperature relationship parameters
 A_UPT_C  = 100000000; %Arrhenius constant for uptake C vmax unit(mg DOC cm-3 soil hours-1)
 Ea_UPT_C= 48;%activation energy for arrhenius equation( kJ mol-1)
-km_UPT_C = 0.3;
-km_upt_N = km_UPT_C;
+% km_UPT_C = 0.3;
+% km_upt_N = km_UPT_C;
+b_UPT_C = 0.1;%0.01; %intercept, mg cm-3 degree-1
+m_UPT_C = 0.01;%0.1;%slope, mg cm-3
 
 %Depolymerization kinetic temperature relationship parameters
-Vmax_0      = 100000000;%;%Arrhenius constantmg SOM cm-3 soil hours-1
-Ea_up       =  48; %activation energy for arrhenius equation, kJ mol-1 
-Km_C = 0.0025;
-Km_N =  Km_C;
+Vmax_0      = 100000000; %Arrhenius constant mg SOM cm-3 soil hours-1
+Ea_up       = 48; %activation energy for arrhenius equation, kJ mol-1 
+%Km_0        = 500; %intercept, mg cm-3
+%Km_slope    = 5; %slope,mg cm-3 degree-1
 
 %CUE
-CUE = 0.31; 
+b_CUE = 0.63;%intercept, mg C mg-1 soil
+m_CUE=-0.016;%slope, degree-1
 
 %DAMM constants
 Km_O2 = 0.121; %cm3 O2/cm3 air
@@ -114,28 +131,34 @@ EC(1,:)= 0.0325; %0.01;
 
 for i = 1:Nt
 %this section will calculate O2 concentration at time i
-O2(i) = Dgas * O2airfrac * ((porosity-soilM)^(4/3));
+O2(i) = Dgas * O2airfrac * ((porosity-soilM(i))^(4/3));
 
 %this section will calculate available substrate and enzymes at reaction site for depolymerization
-sol_SOC(i) = Dliq*(soilM^3)*frac*SOC(i);
-sol_SON(i) = Dliq*(soilM^3)*frac*SON(i);
+sol_SOC(i) = Dliq*(soilM(i)^3)*frac*SOC(i);
+sol_SON(i) = Dliq*(soilM(i)^3)*frac*SON(i);
 
 %E_rs(i) = Dliq*(soilM^3)*EC(i); 
 %E_rs(i) = Dliq*(soilM^3)*EC(i);
 
 %this section will calculate available DOC and DON at reaction site for uptake
-DOC_rs(i) = Dliq*(soilM^3)*DOC(i);
-DON_rs(i) = Dliq*(soilM^3)*DON(i);
+DOC_rs(i) = Dliq*(soilM(i)^3)*DOC(i);
+DON_rs(i) = Dliq*(soilM(i)^3)*DON(i);
     
 %this section of code will calculate vmax  Km and CUE at 20C and 25C. 
 % Equations for kinetic temperature relationships
 %uptake kinetics(base model assumes C and N kinetics are equal)
 vmax_UPT_C = A_UPT_C .* exp(-Ea_UPT_C./(R.*(T(i)+273))); %temp sensitive according to arrhenius
 vmax_upt_N = vmax_UPT_C;
+km_UPT_C = b_UPT_C + m_UPT_C * T(i); %linear function of temp
+km_upt_N = km_UPT_C;
+CUE = b_CUE + m_CUE * T(i); %carbon use efficiency, linear function of temp
 
 %depolymerization kinetics (base model assumes C and N kinetics are equal)
 Vmax_C = Vmax_0 * exp(-Ea_up./(R.*(T(i) + 273)));
+Km_C = (Km_slope * T(i)) + Km_0; %0.0025; 
+
 Vmax_N = Vmax_C; 
+Km_N =  Km_C;
 
 %This section of code calculates the changes in pool sizes over model time
 %using a series of differential equations
@@ -204,7 +227,6 @@ end
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil') 
 % 
-% 
 % figure
 % plot(EC,'LineWidth',3)
 % legend('seasonal model')
@@ -212,12 +234,12 @@ end
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil')
 % 
-figure
-plot(SOC,'LineWidth',3)
-legend('seasonal model')
-title('SOC')
-xlabel('timesteps')
-ylabel('mg C/cm^3 soil')
+% figure
+% plot(SOC,'LineWidth',3)
+% legend('seasonal model')
+% title('SOC')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil')
 % 
 % figure
 % plot(SON,'LineWidth',3)
@@ -225,7 +247,6 @@ ylabel('mg C/cm^3 soil')
 % title('SON')
 % xlabel('timesteps')
 % ylabel('mg N/cm^3 soil')
-% 
 % 
 % figure
 % plot(DOC,'LineWidth',3)
@@ -254,14 +275,14 @@ ylabel('mg C/cm^3 soil')
 % title('N mineralization')
 % xlabel('timesteps')
 % ylabel('mg N /cm^3 soil/timestep')
-% % 
+% 
 % figure
 % plot(DECOM_C,'LineWidth',3)
 % legend('seasonal model')
 % title('C decomposition')
 % xlabel('timesteps')
 % ylabel('mg C /cm^3 soil/timestep')
-% % 
+% 
 % figure
 % plot(UPT_C,'LineWidth',3)
 % legend('seasonal model')
@@ -281,25 +302,28 @@ ylabel('mg C/cm^3 soil')
 % legend('seasonal model')
 % title('overflow C')
 % xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
-% 
+% ylabel('mg C /cm^3 soil/timestep') 
 
 toc
 
-resp = sum(CMIN(Nt-8760:Nt,1));  %in mg/cm3/yr
-nmin = sum(NMIN(Nt-8760:Nt,1));  %in mg/cm3/yr
-decomp = sum(DECOM_C(Nt-8760:Nt,1));
-avail = avail_SOC(Nt,1);
-upt = sum(UPT_C(Nt-8760:Nt,1));
-micc = MIC_C(Nt,1);
-micn = MIC_N(Nt,1);
-soc = SOC(Nt,1);
-son = SON(Nt,1);
-doc = DOC(Nt,1);
-don = DON(Nt,1);
-ec = EC(Nt,1);
+resp = sum(CMIN);  %in mg/cm3/yr
+nmin = sum(NMIN);  %in mg/cm3/yr
+decomp = sum(DECOM_C);
+avail = avail_SOC;
+upt = sum(UPT_C);
+micc = MIC_C;
+micn = MIC_N;
+soc = SOC;
+son = SON;
+doc = DOC;
+don = DON;
+ec = EC;
 resp
 nmin
+
+headers = ['CMIN'];
+heads = cellstr(headers);
+csvwrite_with_headers('cmin_MCNiP_seasonal.csv',CMIN,heads)
 
 
 
