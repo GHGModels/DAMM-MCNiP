@@ -3,7 +3,7 @@ T = [5 10 15 20 25];
 soilM = [0.1 0.2 0.3 0.4 0.5 0.6]; %0.229; %initial soil moisture in cm3 H20/ cm3 soil
 
 %Code runs base model under normal and warmed temperatures
-tic
+tic 
 %used parameter values from Allison et al. 2010 unless otherwise noted, N
 %these parameter values are the default values for the base model
 dt  = 0.1; %timestep interval units = hours
@@ -58,6 +58,7 @@ PD = 2.52; %particle density in g/cm3
 porosity = 1 - BD/PD; 
 frac = 0.000414;%26.2467; %0.000414;
 Dliq = 3.17;
+Km_E = 0.0012;
 
 %Variables, 
 %%this section of code creates empty matrices so that values at each timestep can be saved during model runs, I save all the variables,
@@ -95,6 +96,9 @@ Growth = zeros(Nt,1); %Amount of new biomass grown
 DEATH_C = zeros(Nt,1); %Amount of microbial biomass C that turned over
 DEATH_N = zeros(Nt,1);%Amount of microbial biomass N that turned over
 overflow_C = zeros(Nt,1);%microbial overflow C metabolism
+E_rs = zeros(Nt,1);   %enzyme at the reaction site
+DOC_rs = zeros(Nt,1); %DOC at the uptake reaction site
+DON_rs = zeros(Nt,1); %DON at the uptake reaction site
  
 %Equilibrium Initial conditions, 
 %determined after spinning up model for 5000 years, these are the inital values for each of the pools at time=0. 
@@ -115,19 +119,22 @@ for i = 1:Nt
 %this section will calculate O2 concentration at time i
 O2(i) = Dgas * O2airfrac * ((porosity-soilM(k))^(4/3));
 
-%this section will calculate available substrate for depolymerization and
-%uptake
-sol_SOC(i) = frac*SOC(i);
-sol_SON(i) = frac*SON(i);
+%this section will calculate available substrate and enzymes at reaction site for depolymerization
+sol_SOC(i) = Dliq*(soilM(k)^3)*frac*SOC(i);
+sol_SON(i) = Dliq*(soilM(k)^3)*frac*SON(i);
 
-avail_SOC(i) = Dliq*(soilM(k)^3)*sol_SOC(i); %maybe need to initialize this pool -try it first
-avail_SON(i) = Dliq*(soilM(k)^3)*sol_SON(i);
-    
+%E_rs(i) = Dliq*(soilM(k)^3)*EC(i); 
+%E_rs(i) = Dliq*(soilM(k)^3)*EC(i);
+
+%this section will calculate available DOC and DON at reaction site for uptake
+DOC_rs(i) = Dliq*(soilM(k)^3)*DOC(i);
+DON_rs(i) = Dliq*(soilM(k)^3)*DON(i);   
+
 %this section of code will calculate vmax  Km and CUE at 20C and 25C. 
 % Equations for kinetic temperature relationships
 %uptake kinetics(base model assumes C and N kinetics are equal)
 vmax_UPT_C = A_UPT_C .* exp(-Ea_UPT_C./(R.*(T(j)+273))); %temp sensitive according to arrhenius
-km_UPT_C = b_UPT_C + m_UPT_C * T(j); %linear function of temp
+km_UPT_C = 0.3; %b_UPT_C + m_UPT_C * T(j); %linear function of temp
 CUE = 0.31; %b_CUE + m_CUE * T; %carbon use efficiency, linear function of temp
 
 vmax_upt_N = vmax_UPT_C;
@@ -142,11 +149,10 @@ Km_N =  Km_C;
 
 %This section of code calculates the changes in pool sizes over model time
 %using a series of differential equations
-
-            UPT_C(i) = MIC_C(i) .* vmax_UPT_C *DOC(i) ./ (km_UPT_C + DOC(i)); %microbial C uptake,michaelis-menton dynamics
+ UPT_C(i) = MIC_C(i) .* vmax_UPT_C *(DOC_rs(i) ./ (km_UPT_C + DOC_rs(i)))*O2(i)/(Km_O2 + O2(i)); %microbial C uptake,michaelis-menton dynamics
             CMIN(i) =  UPT_C(i) .* (1-CUE); %C mineralization
             
-            UPT_N(i) = MIC_N(i) .* vmax_upt_N *DON(i) ./ (km_upt_N + DON(i)); %microbial N uptake michaelis-menton dynamics
+            UPT_N(i) = MIC_N(i) .* vmax_upt_N *(DON_rs(i) ./ (km_upt_N + DON_rs(i)))*O2(i)/(Km_O2 + O2(i)); %microbial N uptake michaelis-menton dynamics
             DEATH_C(i) = r_death .* MIC_C(i); %microbial C turnover, first order process
             DEATH_N(i) = r_death .* MIC_N(i); %microbial N turnover,first order process
             
@@ -181,8 +187,8 @@ Km_N =  Km_C;
             EC(i+1) = EC(i) +  dt * (EPROD(i) - ELOSS(i));%enzyme pool
             
             %Depolymerization inputs,derived from Allison et al 2010.
-            DECOM_C(i) = Vmax_C .* a*EC(i) .* (avail_SOC(i) ./(Km_C + avail_SOC(i)))*O2(i)/(Km_O2 + O2(i)); %depolymerization of SOC by enzymes
-            DECOM_N(i) = Vmax_N.*(1-a)*EC(i).*(avail_SON(i)./(Km_N + avail_SON(i)))*O2(i)/(Km_O2 + O2(i)); %depolymerization of SON by enzymes
+            DECOM_C(i) = Vmax_C .* a*EC(i) .*sol_SOC(i) ./(Km_C + sol_SOC(i)); %depolymerization of SOC by enzymes
+            DECOM_N(i) = Vmax_N.*(1-a)*EC(i).*sol_SON(i)./(Km_N + sol_SON(i)); %depolymerization of SON by enzymes
             
             %SOM pools
             SOC(i+1) = SOC(i) + dt * (Litter_C + DEATH_C(i) * MIC_to_SOC - DECOM_C(i));
@@ -207,109 +213,5 @@ save(filename, 'resp','nmin')
 end
 
 end
-
-
-%will create figures for each pool over time 
-
-% figure
-% plot(MIC_C,'LineWidth',3)
-% legend('seasonal model')
-% title('Microbial Biomass')
-% xlabel('timesteps')
-% ylabel('mg C/cm^3 soil') 
-% 
-% 
-% figure
-% plot(EC,'LineWidth',3)
-% legend('seasonal model')
-% title('Enzyme pool')
-% xlabel('timesteps')
-% ylabel('mg C/cm^3 soil')
-% 
-figure
-plot(SOC,'LineWidth',3)
-legend('seasonal model')
-title('SOC')
-xlabel('timesteps')
-ylabel('mg C/cm^3 soil')
-% 
-% figure
-% plot(SON,'LineWidth',3)
-% legend('seasonal model')
-% title('SON')
-% xlabel('timesteps')
-% ylabel('mg N/cm^3 soil')
-% 
-% 
-% figure
-% plot(DOC,'LineWidth',3)
-% legend('seasonal model')
-% title('DOC')
-% xlabel('timesteps')
-% ylabel('mg C/cm^3 soil')
-% 
-% figure
-% plot(DON,'LineWidth',3)
-% legend('seasonal model')
-% title('DON')
-% xlabel('timesteps')
-% ylabel('mg N/cm^3 soil')
-% 
-% figure
-% plot(CMIN,'LineWidth',3)
-% legend('seasonal model')
-% title('Soil respiration')
-% xlabel('timesteps')
-% ylabel('mg C/cm^3 soil/timestep')
-% 
-% figure
-% plot(NMIN,'LineWidth',3)
-% legend('seasonal model')
-% title('N mineralization')
-% xlabel('timesteps')
-% ylabel('mg N /cm^3 soil/timestep')
-% % 
-% figure
-% plot(DECOM_C,'LineWidth',3)
-% legend('seasonal model')
-% title('C decomposition')
-% xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
-% % 
-% figure
-% plot(UPT_C,'LineWidth',3)
-% legend('seasonal model')
-% title('C uptake')
-% xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
-% 
-% figure
-% plot(Growth_C,'LineWidth',3)
-% legend('seasonal model')
-% title('C growth')
-% xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
-% 
-% figure
-% plot(overflow_C,'LineWidth',3)
-% legend('seasonal model')
-% title('overflow C')
-% xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
-
-% resp = sum(CMIN(Nt-8760:Nt,1));  %in mg/cm3/yr
-% nmin = sum(NMIN(Nt-8760:Nt,1));  %in mg/cm3/yr
-% % decomp = sum(DECOM_C(Nt-8760:Nt,1));
-% % avail = avail_SOC(Nt,1);
-% % upt = sum(UPT_C(Nt-8760:Nt,1));
-% % micc = MIC_C(Nt,1);
-% % micn = MIC_N(Nt,1);
-% % soc = SOC(Nt,1);
-% % son = SON(Nt,1);
-% % doc = DOC(Nt,1);
-% % don = DON(Nt,1);
-% % ec = EC(Nt,1);
-% resp
-% nmin
 
 toc

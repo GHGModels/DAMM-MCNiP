@@ -1,22 +1,20 @@
-F = xlsread ('fisher_noleap_2012.xlsx');
-F1 = rep(F', 24);
-T = rep(F1, 1000);
+F = xlsread('hformat.xlsx');
+T = F(:,1);
 
- EO1 = rep([0 0 0.0002 0.0002 0.0002 0 0 0 0 0 0 0],730); %%oaks %%mgC/cm3/hr based on live fine root biomass* exudation rate
- EO = rep(EO1, 1000); %resp = 7.5916
- EH1 = rep([0 0 0 0 0 0 0 0.0002 0.0002 0.0002 0 0],730); %%hemlock
- EH = rep(EH1, 1000); %resp = 7.6652
- SU1 = rep([0 0 0 0 0 0.0002 0.0002 0.0002 0 0 0 0],730); %%hemlock
- SU = rep(SU1, 1000); %resp =  7.6829
- NO = rep(0.00005,8760000); %no seasonality %resp = 7.6072
-E= NO;%rep(0,8760000); %resp = 7.2593 mgC/cm3/yr
+%  EO1 = rep([0 0 0.0002 0.0002 0.0002 0 0 0 0 0 0 0],730); %%oaks %%mgC/cm3/hr based on live fine root biomass* exudation rate
+%  EO = rep(EO1, Yr); %resp = 7.5916
+%  EH1 = rep([0 0 0 0 0 0 0 0.0002 0.0002 0.0002 0 0],730); %%hemlock
+%  EH = rep(EH1, Yr); %resp = 7.6652
+%  SU1 = rep([0 0 0 0 0 0.0002 0.0002 0.0002 0 0 0 0],730); %%hemlock
+%  SU = rep(SU1, Yr); %resp =  7.6829
+%  NO = rep(0.00005,8760*Yr); %no seasonality %resp = 7.6072
+E= 0; %rep(0,8760*Yr); %resp = 7.2593 mgC/cm3/yr
 %Code runs base model under normal and warmed temperatures
 tic
 %used parameter values from Allison et al. 2010 unless otherwise noted, N
 %these parameter values are the default values for the base model
 dt  = 0.1; %timestep interval units = hours
-Nt = 8760000;%number of timesteps model will run for
-
+Nt = length(F);%number of timesteps model will run for
 R = 0.008314; %gas constant used in Arrhenius equation (kJ mol-1 degree-1)
 CN_s = 27.6;%C:N of SOM as given by Schimel & Weintraub 2003
 CN_m = 10;%C:N of microbes
@@ -87,13 +85,39 @@ overflow_C = zeros(Nt,1);%microbial overflow C metabolism
  
 %Equilibrium Initial conditions, 
 %determined after spinning up model for 2000 years (17520000 timesteps), these are the inital values for each of the pools at time=0. 
-MIC_C(1,:) = 2.6132; %0.5; %1.9356;
-MIC_N(1,:) = 0.2613; %0.05; %0.1936;
-SOC(1,:) = 122.8561; %100; %82.7878;
-SON(1,:) = 5.5323; %3.6232; % 3.6320;
-DOC(1,:) = 0.00043571; %0.5; % 0.00073085;
-DON(1,:)= 0.00065409; %0.0333; %0.00043707;
-EC(1,:)= 0.0457; %0.01; %0.0381; 
+
+MIC_C(1,:) = 2.61;
+MIC_N(1,:) = 0.261;
+SOC(1,:) = 122.8543;
+SON(1,:) = 5.5336;
+DOC(1,:) = 0.00070987;
+DON(1,:)= 0.00045272;
+EC(1,:)= 0.0452; 
+% 
+% MIC_C(1,:) = 2.61;
+% MIC_N(1,:) = 0.261;
+% SOC(1,:) = 122.8559;
+% SON(1,:) = 5.5336;
+% DOC(1,:) = 0.00070987;
+% DON(1,:)= 0.00045271;
+% EC(1,:)= 0.0452; 
+
+% MIC_C(1,:) = 2.6124;
+% MIC_N(1,:) = 0.2612; 
+% SOC(1,:) = 123.0522;
+% SON(1,:) = 5.5336;
+% DOC(1,:) = 0.00070992;
+% DON(1,:)= 0.00045251;
+% EC(1,:)= 0.0453;
+
+%spin up parameters
+% MIC_C(1,:) = 0.5; 
+% MIC_N(1,:) = 0.05;
+% SOC(1,:) = 100; 
+% SON(1,:) = 3.6232; 
+% DOC(1,:) = 0.5; 
+% DON(1,:)= 0.0333; 
+% EC(1,:)= 0.01;
 
 for i = 1:Nt
 %this section of code will calculate vmax  Km and CUE at 20C and 25C. 
@@ -161,8 +185,8 @@ Km_N =  Km_C;
             SON(i+1) = SON(i) + dt * (Litter_N + DEATH_N(i) *MIC_to_SON - DECOM_N(i));
  
             %Dissolved C&N pools
-            DOC(i+1) = DOC(i) + dt * (DOC_input + E(i) + DECOM_C(i) + DEATH_C(i)*(1-MIC_to_SOC) + (CN_enz/(1+CN_enz)).*ELOSS(i) - UPT_C(i));
-            DON(i+1) = DON(i) + dt * (DON_input+ E(i)/CN_s + DECOM_N(i) + DEATH_N(i) * (1-MIC_to_SON) + (1/CN_enz).*ELOSS(i)- UPT_N(i));
+            DOC(i+1) = DOC(i) + dt * (DOC_input + E + DECOM_C(i) + DEATH_C(i)*(1-MIC_to_SOC) + (CN_enz/(1+CN_enz)).*ELOSS(i) - UPT_C(i));
+            DON(i+1) = DON(i) + dt * (DON_input+ E/CN_s + DECOM_N(i) + DEATH_N(i) * (1-MIC_to_SON) + (1/CN_enz).*ELOSS(i)- UPT_N(i));
             %turnover from enzymes deposited here. Because enzymes are not split up into separate pools within the model, I calculate the
             %amount of C and N created by the turnover of an enzyme by using the C:N of the enzymes
 
@@ -177,8 +201,6 @@ end
 % title('Microbial Biomass')
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil') 
-% xlim([Nt-8760,Nt])
-% 
 % 
 % figure
 % plot(EC,'LineWidth',3)
@@ -186,16 +208,13 @@ end
 % title('Enzyme pool')
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil')
-% xlim([Nt-8760,Nt])
 % 
-% 
-% figure
-% plot(SOC,'LineWidth',3)
-% legend('seasonal model')
-% title('SOC')
-% xlabel('timesteps')
-% ylabel('mg C/cm^3 soil')
-% xlim([Nt-8760,Nt])
+figure
+plot(SOC,'LineWidth',3)
+legend('seasonal model')
+title('SOC')
+xlabel('timesteps')
+ylabel('mg C/cm^3 soil')
 % 
 % figure
 % plot(SON,'LineWidth',3)
@@ -203,7 +222,6 @@ end
 % title('SON')
 % xlabel('timesteps')
 % ylabel('mg N/cm^3 soil')
-% xlim([Nt-8760,Nt])
 % 
 % figure
 % plot(DOC,'LineWidth',3)
@@ -211,7 +229,6 @@ end
 % title('DOC')
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil')
-% xlim([Nt-8760,Nt])
 % 
 % figure
 % plot(DON,'LineWidth',3)
@@ -219,7 +236,6 @@ end
 % title('DON')
 % xlabel('timesteps')
 % ylabel('mg N/cm^3 soil')
-% xlim([Nt-8760,Nt])
 % 
 % figure
 % plot(CMIN,'LineWidth',3)
@@ -227,7 +243,6 @@ end
 % title('Soil respiration')
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil/timestep')
-% xlim([Nt-8760,Nt])
 % 
 % figure
 % plot(NMIN,'LineWidth',3)
@@ -235,7 +250,6 @@ end
 % title('N mineralization')
 % xlabel('timesteps')
 % ylabel('mg N /cm^3 soil/timestep')
-% xlim([Nt-8760,Nt])
 % 
 % figure
 % plot(T,'LineWidth',3)
@@ -243,17 +257,21 @@ end
 % title('Temperature')
 % xlabel('timesteps')
 % ylabel('degree C')
-% xlim([Nt-8760,Nt])
 
 toc
 
-resp = sum(CMIN(8751240:8760000,1));%in mg/cm3/yr
-nmin = sum(NMIN(8751240:8760000,1));
-soc = mean(SOC(8760000,1));
-son = mean(SON(8751240:8760000,1));
-ec = mean(EC(8751240:8760000,1));
-doc = mean(DOC(8751240:8760000,1));
-don = mean(DON(8751240:8760000,1));
-mic_c = mean(MIC_C(8751240:8760000,1));
-mic_n = mean(MIC_N(8751240:8760000,1));
+resp = sum(CMIN);%in mg/cm3/yr
+nmin = sum(NMIN);
+soc = mean(SOC);
+son = mean(SON);
+ec = mean(EC);
+doc = mean(DOC);
+don = mean(DON);
+mic_c = mean(MIC_C);
+mic_n = mean(MIC_N);
+
+headers = ['CMIN'];
+heads = cellstr(headers);
+csvwrite_with_headers('cmin_MCNiP_seasonal_temp_only.csv',CMIN,heads)
+
 

@@ -1,0 +1,6 @@
+{Attempt to reference field of non-structure array.
+
+Error in MCNiP_seasonal (line 195)
+savefig(MIC_C.fig)
+} 
+
