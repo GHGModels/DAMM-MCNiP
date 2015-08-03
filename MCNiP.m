@@ -1,4 +1,4 @@
-Yr = 3000;
+Yr = 500;
 T = 20;
 soilM = 0.229; %0.229; %initial soil moisture in cm3 H20/ cm3 soil
 
@@ -130,7 +130,7 @@ DON_rs(i) = Dliq*(soilM^3)*DON(i);
 %uptake kinetics(base model assumes C and N kinetics are equal)
 vmax_UPT_C = A_UPT_C .* exp(-Ea_UPT_C./(R.*(T+273))); %temp sensitive according to arrhenius
 km_UPT_C = b_UPT_C + m_UPT_C * T; %linear function of temp
-CUE = 0.31; %b_CUE + m_CUE * T; %carbon use efficiency, linear function of temp
+CUE = 0.03; %b_CUE + m_CUE * T; %carbon use efficiency, linear function of temp
 
 vmax_upt_N = vmax_UPT_C;
 km_upt_N = km_UPT_C; 
@@ -217,13 +217,13 @@ end
 % xlabel('timesteps')
 % ylabel('mg C/cm^3 soil')
 % 
-figure
-plot(SOC,'LineWidth',3)
-legend('seasonal model')
-title('SOC')
-xlabel('timesteps')
-ylabel('mg C/cm^3 soil')
-% 
+% figure
+% plot(SOC,'LineWidth',3)
+% legend('seasonal model')
+% title('SOC')
+% xlabel('timesteps')
+% ylabel('mg C/cm^3 soil')
+% % 
 % figure
 % plot(SON,'LineWidth',3)
 % legend('seasonal model')
@@ -303,6 +303,7 @@ son = SON(Nt,1);
 doc = DOC(Nt,1);
 don = DON(Nt,1);
 ec = EC(Nt,1);
+cmin = CMIN(Nt,1);
 resp
 nmin
 

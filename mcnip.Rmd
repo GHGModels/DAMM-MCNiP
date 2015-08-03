@@ -1,0 +1,264 @@
+---
+title: "mcnip"
+author: "Rose Z. Abramoff"
+date: "July 16, 2015"
+output: 
+  html_document:
+    pandoc_args: [
+      "+RTS", "-K64m",
+      "-RTS"
+    ]
+---
+##DAMM-MCNiP is a C-N coupled microbial physiology model, created from the merger of DAMM (Davidson et al. 2012) and MCNiP (Finzi et al. 2015). 
+
+##Model options
+```{r options}
+#runtime (hours)
+times.def <<- seq(0,50,by=0.5)
+```
+
+##Parameter options
+```{r params}
+#define parameters
+#litter C:N should prob be higher than 27.6
+pars <- list(e = 0.00026, cn_ex = 27.6, cn_s = 27.6, cn_m = 10, cn_enz = 3, p = 0.5, q = 0.5, a = 0.5, r = 0.008314, r_death = 0.00015, r_ecloss = 0.001, mic_to_soc = 0.5, mic_to_son = 0.5, doc_input = 0.0005, litter_c = 0.0005, don_input = 0.0005/27.6, litter_n = 0.0005/27.6, a_upt_c = 1e8, vmax_0 = 1e8, ea_upt_c = 48, ea_up = 48, b_upt_c = 0.1, m_upt_c = 0.01, km_0 = 500, km_slope = 5, b_cue = 0.63, m_cue = -0.016)
+
+#specify min and max values of each parameter of interest
+#used in: global sensitivity analysis, stability analysis
+parRanges <- data.frame(min = c(40), max = c(100))
+rownames(parRanges) <- c("ea_up")
+pars2fit <- c(ea_up = 61.77)
+```
+
+##Pool options
+```{r pools}
+#pre-allocate pools
+mic_c <- mic_n <- ec <- soc <- son <- doc <- don <- o2 <- vector(mode = "double", length = length(times.def)) 
+
+#initialize pools
+state <<- c(mic_c = 1.1957, mic_n = 0.1196, soc = 144.5986, son = 5.4413, doc = 0.00091631, don = 0.00049421, ec = 0.0325)
+
+#specify pool(s) of interest in `sensvar`
+#used in: global sensitivity analysis, local sensitivity analysis, parameter identifiability analysis
+#intended use in parameter identifiability analysis: set `sensvar` = pools for which there are data, then assess collinearity to determine which parameter combinations require data
+sensvar = c("soc")
+```
+
+##Fluxes
+```{r fluxes}
+#pre-allocate fluxes
+decom_c <- decom_n <- upt_c <- upt_n <- enz_c <- enz_n <- eprod <- eloss <- growth_c <- growth_n <- growth <- death_c <- death_n <- overflow_c <- cmin <- nmin <- vector(mode = "double", length = length(times.def))
+```
+
+##Environmental Drivers
+```{r envdr}
+#Environmental inputs (190 days worth of data)
+f <- read.csv("/Users/rzabramoff/Dropbox/bu/dissertation_research/damm-mcnip/hformat.csv", sep=",",header=T, na.strings="NA")
+soilt <- rep(13.73, length(times.def)) #f$SoilT
+```
+
+##Load libraries
+```{r loadlib}
+library(deSolve)
+library(FME)
+```
+
+
+##Model
+```{r model}
+#define model as a function
+snap <- function(pars, times = times.def) {
+derivs <- function(t, state, pars) {
+   with(as.list(c(state, pars)), {
+     #relevant model equations
+     vmax_upt_c <- vmax_upt_n <- a_upt_c * exp(-ea_upt_c / (r * (temp(t) + 273))) #calculate uptake kinetics
+     vmax_c <- vmax_n <- vmax_0 * exp(-ea_up / (r * (temp(t) + 273))) #calculate depolymerization kinetics
+     km_upt_c <- km_upt_n <- b_upt_c + m_upt_c * temp(t) #not in damm-mcnip
+     km_c <- km_n <- km_0 + km_slope * temp(t) #not in damm-mcnip
+     cue <- b_cue + m_cue * temp(t) #not in damm-mcnip
+     upt_c <- mic_c * vmax_upt_c * (doc / (km_upt_c + doc)) #microbial C uptake
+     cmin <- upt_c * (1 - cue) #C mineralization
+     upt_n <- mic_n * vmax_upt_n * (don / (km_upt_n + don)) #microbial N uptake
+     death_c <- r_death * mic_c #microbial C turnover
+     death_n <- r_death * mic_n #microbial N turnover
+     enz_c <- p * cue * upt_c #amount of C available for enzyme production after C allocated to mineralization
+     enz_n <- q * upt_n #amount of N available for enzyme production
+     eprod <- ifelse(enz_c / cn_enz >= enz_n, enz_n, enz_c / cn_enz) #if enzyme production is N-limited, then number of enzyme produced = N cost for enzyme production (1 enzyme made for every 1 N used), else enzyme production C-limited
+     growth_c <- (1 - p) * upt_c * cue + enz_c - cn_enz * eprod #available C for biomass growth
+     growth_n <- (1 - q) * upt_n + enz_n - eprod #available N for biomass growth
+     growth <- ifelse(growth_c / cn_m >= growth_n, growth_n, growth_c / cn_m) #if microbes N-limited, then amount of microbial biomass growth equals cost of N to produce microbes, else growth is C-limited
+     overflow_c <- growth_c - cn_m * growth #extra C after microbial growth goes to overflow metabolism
+     nmin <- growth_n - growth #N mineralization
+     dmic_c <- cn_m * growth - death_c #microbial biomass C pool, growth multiplied by C:N of microbes because growth = N cost to build a microbe, but C cost is greater
+     dmic_n <- growth - death_n #microbial biomass N pool
+     eloss <- r_ecloss * ec #enzyme turnover
+     dec <- eprod - eloss #enzyme pool
+     decom_c <- vmax_c * a * ec * soc / (km_c + soc) #depolymerization of soc by enzymes
+     decom_n <- vmax_n * (1 - a) * ec * son / (km_n + son) #depolymerization of son by enzymes
+     dsoc <- litter_c + death_c * mic_to_soc - decom_c
+     dson <- litter_n + death_n * mic_to_son - decom_n
+     ddoc <- doc_input + e + decom_c + death_c * (1 - mic_to_soc) + cn_enz / (1 + cn_enz) * eloss - upt_c #doc pool, enzyme turnover deposited here.
+     ddon <- don_input + e / cn_ex + decom_n + death_n * (1 - mic_to_son) + 1 / cn_enz * eloss - upt_n
+#don pool, enzyme turnover deposited here. because enzymes are not split up into separate pools within the model, the amount of C and N created by the turnover of an enzyme is calculated using the C:N of enzymes
+    return(list(c(dmic_c, dmic_n, dec, dsoc, dson, ddoc, ddon)))
+  })
+}
+temp <- approxfun(soilt, method = "linear", rule = 2) #create function for input data
+#solve function using ode solver
+return(ode(state, times, derivs, pars))
+}
+
+out <- snap(pars)
+```
+
+##Plot of output
+```{r plotout, echo = FALSE}
+#generate plot of results
+matplot(out[,1], out[,-1], type = "l", lty = 1:(ncol(out) - 1), col = 1, xlab = "time (hours)", ylab = "mol C/m3")
+legend("topright", colnames(out[,-1]), lty = 1:(ncol(out) -1))
+plot(out[1:100,1], out[1:100,4])
+```
+
+##Global Sensitivity Analysis
+```{r globsens}
+#sensitivity of variables in sensvar to the parameters in parRanges
+#looped -> but could be vectorized to save time (approx 1 user sec/parameter)
+for (i in 1:nrow(parRanges)){
+sR <- sensRange(func = snap, parms = pars, dist = "unif", sensvar, parRange = parRanges[i,], num = 100)
+  par(mar=c(4,4,3,2), mfrow = c(2,length(sensvar)))
+  p1 <- plot(summary(sR), xlab = "time (hours)", ylab = "mol C/m3", legpos = "topleft", mfrow = NULL)
+  p2 <- plot(summary(sR), xlab = "time (hours)", ylab = "mol C/m3", legpos = "topleft", mfrow = NULL, quant = TRUE, col = c("lightblue", "blue"))
+  mtext(outer = TRUE, line = -1.5, side = 3, text = paste("Sensitivity to", rownames(parRanges[i,])), cex = 1.25)
+  box("outer", lwd = 3 , col = 2)
+  }
+```
+
+```{r parset, echo = FALSE}
+par(mfrow = c(1,1))
+```
+
+Sensitivity range for the combination of all parameters in `parRanges`
+```{r senscomb}
+SensComb <- summary(sensRange(func = snap, parms = pars, dist = "unif", sensvar = sensvar, parRange = parRanges, num = 100))
+
+plot(SensComb, main = paste("Sensitivity of", sensvar, "to all params"), xlab = "time (hours)", ylab = "mol C/m3")
+box("outer", lwd = 3, col = 2)
+```
+
+
+##Local Sensitivity Analysis
+```{r localsens, warning=FALSE}
+#reminder: sensvar is predefined and may be more than one pool
+SensLoc <- sensFun(func = snap, parms = pars, sensvar = sensvar, varscale = 1)
+
+pm <- par(mfrow = c(1,length(sensvar)))
+plot(SensLoc, which = sensvar, mfrow = NULL)
+par(mfrow = pm)
+
+#pairwise relationships in param sensitivity
+#takes all var(s) in sensvar into account
+#cor(SensLoc[,-(1:2)])
+pairs(SensLoc)
+```
+
+##Stability analysis
+```{r stabil}
+#final concentration of pools as function of params
+snap.mc <- function(pars) {
+  out <- snap(pars)
+  return(out[nrow(out), -1])
+}
+
+#loop like in global
+for (i in 1:nrow(parRanges)){
+CRL <- modCRL(func = snap.mc, parms = pars, parRange = parRanges[i,])
+plot(CRL)
+mtext(outer = TRUE, line = -1.5, side = 3, text = paste("Final concentration response to", rownames(parRanges[i,])), cex = 1.25)
+box("outer", lwd = 3 , col = 2)
+}
+```
+
+#Parameter Identifiability
+```{r parident, eval = FALSE}
+#reminder: sensvar is predefined and may be more than one pool
+#this is repeated below in mcmc but with data
+coll <- collin(SensLoc)
+goodColl <- coll[coll[,"collinearity"] < 20,]
+goodColl[goodColl$N == (max(goodColl$N)),]
+```
+
+#Standard Parameter Fitting
+```{r parfit}
+#input some dummy micc data
+Data1 <- matrix (nc=2,byrow=2,data= c( 2, 0.14, 4, 0.21, 6, 0.31, 8, 0.40, 10, 0.69, 12, 0.97, 14, 1.42, 16, 2.0, 18, 3.0, 20, 4.5, 22, 6.5, 24, 9.5, 26, 13.5, 28, 20.5, 30, 29 , 35, 65, 40, 61))
+colnames(Data1) <- c("time", "mic_c")
+
+#input some dummy polc data (not used)
+Data2 <- matrix (nc=2,byrow=2,data= c( 2, 0.10, 4, 0.21, 6, 0.30, 8, 0.40, 10, 0.67, 12, 0.99, 14, 1.47, 16, 2.0, 18, 3.0, 20, 4.5, 22, 6.8, 24, 9.2, 26, 13.5, 28, 20.6, 30, 29 , 35, 65, 40, 61))
+colnames(Data2) <- c("time", "soc")
+
+#try putting two datasets in:
+Data3 <- as.data.frame(Data1)
+Data2 <- as.data.frame(Data2)
+Data3$soc <- Data2$soc
+
+#input some long-form data
+Data4<- data.frame(name = c("mic_c", "soc", "mic_c", "soc", "mic_c", "soc", "mic_c", "soc"),
+              time = c(1,1,2,2,3,3,4,4), val = c(0.1, 0.21, 0.3, 0.45, 0.54, 0.67, 0.8, 0.99),
+              err = c(0.11, 0.22, 0.1, 0.2, 0.4,0.43, 0.4, 0.44))
+
+#define objective function that return model-data residuals
+Objective <- function(x, parset = names(x)) {
+  pars[parset] <- x
+  out <- snap(pars, times.def)
+  ##model cost
+  return(modCost(obs = Data1, model = out))
+}
+
+#identifiability check
+#Coll <- collin(sensFun(func = Objective, parms = pars, varscale = 1))
+#Coll[Coll[,"collinearity"] > 20,]
+
+#fit model using Levenberg-Marquardt algorithm (default)
+##parameters constrainted to be > 0
+Fit <- modFit(p = pars2fit, f = Objective, lower = rep(0.0, length(pars2fit)))
+sumfit <- summary(Fit)
+#sumfit[] ##for covariance matrix & additional info
+
+init <- snap(pars)
+pars[c(names(Fit$par))] <- Fit$par
+out <- snap(pars)
+Cost <- modCost(obs = Data1, model = out)
+
+plot(out, init, xlab = "time (hours)", ylab = "mol C/m3", lwd = 2, obs = Data1, obspar = list(cex = 2, pch = 18))
+legend("bottomright", lwd = 2, col = 1:2, lty = 1:2, c("fitted", "original"))
+
+plot(Cost, xlab = "time (hours)", ylab = "", main = "residuals")
+```
+
+##MCMC
+```{r mcmc, eval=FALSE}
+#sumfit$modVariance is the initial model error variance
+#1/modVariance is drawn from gamma dist
+
+#standard deviation of jump distribution (a multi-dimensional Gaussian)
+covIni <- sumfit$cov.scaled*(2.4^2/nrow(sumfit$cov.scaled)) 
+
+#var0 = prior mean for sigma^2, wvar0 = prior accuracy
+#if wvar0 = 1, equal weight is given to prior and current value
+#if wvar0 = 1, then prior is ignored
+#setting var0 = sumfit#modVariance is not independent (find independent estimates...)
+print(system.time(mcmc <- modMCMC(p = coef(Fit), f = Objective, jump = covIni, var0 = sumfit$modVariance, wvar0 = 1, niter = 1000, updatecov = 1001)))
+
+plot(mcmc, Full = TRUE)
+
+summary(mcmc)
+
+if (length(coef(Fit)) < 2) hist(mcmc) else pairs(mcmc)
+
+mc <- as.mcmc(mcmc$pars)
+cumuplot(mc)
+cov(mcmc$pars)
+covIni
+```
+
