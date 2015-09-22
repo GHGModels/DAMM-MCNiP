@@ -12,7 +12,7 @@ sensi = zeros(1,1);
 
 for i = 1:length(sensPar) %for each parameter value
 
-   sensPar(i) = sensPar(i)*1.5; %double parameter value
+   sensPar(i) = sensPar(i)*1.1; %double parameter value
    hiPar = sensPar(i);
    m2c = mat2cell(sensPar, (rep(1,34))); %convert mat back to cell
    allPar = vertcat(otherPar, m2c); %concatenate sensPars and otherPars

@@ -1,0 +1,70 @@
+---
+title: "dream_damm_mcnip"
+author: "rza"
+date: "September 22, 2015"
+output: html_document
+---
+
+##DAMM-MCNiP is a C-N coupled microbial physiology model, created from the merger of DAMM (Davidson et al. 2012) and MCNiP (Finzi et al. 2015). 
+
+###Define DREAM controls
+```{r}
+control <- list(
+                ndim=10, #number of parameters
+                DEpairs=3, #number of pairs to solve at each generation
+                #gamma=0, #kurtosis parameter
+                #nCR=3, #crossover values used to generate proposals
+                #ndraw=1e5, #maximum number of function evaluations
+                #steps=10, #number of stems in sem
+                #eps=5e-2, #random error for ergodicity
+                #outlierTest='IQR_test', #test used to detect outlier chains
+                #pCR.Update=TRUE, #whether to use adaptive tuning of crossover values
+                thin.t=10, #MCMC chain thinning interval
+                boundHandling='none', #method used to handle parameter values outside of parameter bounds
+                burnin.length=Inf, ##<1 proportion of fx evals to use as burn-in period, if >1 number of fx evals
+                REPORT=1e4 #number fx evals between calc and report convergence diagnosics
+                )
+```
+
+###Define function
+```{r}
+
+```
+
+###Define pars
+```{r}
+pars <- replicate(control$ndim,c(-Inf,Inf),simplify=F) #lower and upper bound for
+```
+
+###Define initial state fx
+```{r}
+cmat <- diag(control$ndim)
+cmat[1,1] <- 100
+bpar <- 0.1
+imat <- solve(cmat)
+muX=rep(0,control$ndim)
+qcov=diag(control$ndim)*5
+```
+
+###Run it
+```{r}
+set.seed(11)
+
+dd <- dream(
+            FUN=Banshp, func.type="logposterior.density",
+            pars = pars,
+            FUN.pars=list(
+              imat=imat,
+              bpar=bpar),
+            INIT = CovInit,
+            INIT.pars=list(
+              muX=muX,
+              qcov=qcov,
+              bound.handling=control$boundHandling
+              ),
+            control = control
+            )
+
+summary(dd)
+```
+

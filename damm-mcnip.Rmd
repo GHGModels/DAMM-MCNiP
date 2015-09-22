@@ -9,7 +9,7 @@ output: html_document
 ##Model options
 ```{r options}
 #runtime (hours)
-times.def <<- seq(0,50,by=0.5)
+times.def <<- seq(0,500,by=0.5)
 ```
 
 ##Parameter options
@@ -50,8 +50,8 @@ decom_c <- decom_n <- upt_c <- upt_n <- enz_c <- enz_n <- eprod <- eloss <- grow
 ```{r envdr}
 #Environmental inputs (190 days worth of data)
 f <- read.csv("/Users/rzabramoff/Dropbox/bu/dissertation_research/damm-mcnip/hformat.csv", sep=",",header=T, na.strings="NA")
-soilt <- rep(13.73, length(times.def)) #f$SoilT
-soilm <- rep(0.3369, length(times.def)) #ifelse(f$SoilM > 0.5, 0.5, f$SoilM)
+soilt <- f$SoilT #rep(13.73, length(times.def)) 
+soilm <-  ifelse(f$SoilM > 0.5, 0.5, f$SoilM) #rep(0.3369, length(times.def))
 porosity <- 1 - pars$bd/pars$pd;
 ```
 
