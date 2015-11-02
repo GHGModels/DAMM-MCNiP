@@ -9,7 +9,7 @@ output: html_document
 ##Model options
 ```{r options}
 #runtime (hours)
-times.def <<- seq(0,500,by=0.5)
+times.def <<- seq(0,50,by=0.5)
 ```
 
 ##Parameter options
@@ -21,7 +21,7 @@ pars <- list(e = 0.00026, cn_ex = 27.6, cn_s = 27.6, cn_m = 10, cn_enz = 3, p = 
 
 #specify min and max values of each parameter of interest
 #used in: global sensitivity analysis, stability analysis
-parRanges <- data.frame(min = c(50), max = c(100))
+parRanges <- data.frame(min = c(30), max = c(100))
 rownames(parRanges) <- c("ea_up")
 pars2fit <- c(ea_up = 61.77)
 ```
@@ -69,6 +69,7 @@ snap <- function(pars, times = times.def) {
 derivs <- function(t, state, pars) {
    with(as.list(c(state, pars)), {
      #relevant model equations
+     porosity = 1 - bd/pd; 
      o2 <- dgas * o2airfrac * (porosity - mois(t))^(4/3) #calculate [o2] at time t
      sol_soc <- dliq * mois(t)^3 * frac * soc #calculate available soc at reaction site
      sol_son <- dliq * mois(t)^3 * frac * son #calculate available son at reaction site

@@ -18,7 +18,7 @@ normal$ENZ <- normal$ENZ*0.001
 df$timeNA <- ifelse(is.na(df$scale), NA, df$time)
 
 #save plots code 12 panel####
-pdf(("/Users/rzabramoff/Documents/records/dropbox backup/dropbox.6.1.2015/BU/Dissertation_Research/data 2014/Ch4/poolflux_031615.pdf"))
+#pdf(("/Users/rzabramoff/Documents/records/dropbox backup/dropbox.6.1.2015/BU/Dissertation_Research/data 2014/Ch4/poolflux_031615.pdf"))
 
 #shrinko####
 par(mfrow=c(3,4), mai = c(0.6,0.6,0.3,0.1), mgp = c(2,0.7,0))
@@ -106,7 +106,7 @@ plot(df$timeNA, normal$ENZ, type="p", main = "Enzyme C", col =6,
 text(75,2.106, "l)", cex = 1.1, xpd = NA, font = 2)
 
 #endplots####
-dev.off()
+#dev.off()
 
 #NMIN v overflow####
 par(mfrow=c(1,1))

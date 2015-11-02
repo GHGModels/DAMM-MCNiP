@@ -10,8 +10,9 @@ output: html_document
 ###Define DREAM controls
 ```{r}
 control <- list(
-                ndim=10, #number of parameters
-                DEpairs=3, #number of pairs to solve at each generation
+                ndim=1, #number of parameters
+                nseq=3,
+                DEpairs=1, #number of pairs to solve at each generation
                 #gamma=0, #kurtosis parameter
                 #nCR=3, #crossover values used to generate proposals
                 #ndraw=1e5, #maximum number of function evaluations
@@ -28,34 +29,71 @@ control <- list(
 
 ###Define function
 ```{r}
-
+snap <- function(pars, OtherPars) {
+    with(as.list((OtherPars)), {
+     #relevant model equations
+     porosity = 1 - bd/pd; 
+     o2 <- dgas * o2airfrac * (porosity - soilm^(4/3)) #calculate [o2] at time t
+     sol_soc <- dliq * soilm^3 * frac * soc #calculate available soc at reaction site
+     sol_son <- dliq * soilm^3 * frac * son #calculate available son at reaction site
+     vmax_upt_c <- vmax_upt_n <- a_upt_c * exp(-ea_upt_c / (r * (soilt + 273))) #calculate uptake kinetics
+     vmax_c <- vmax_n <- vmax_0 * exp(-ea_up / (r * (soilt + 273))) #calculate depolymerization kinetics
+     upt_c <- mic_c * vmax_upt_c * (doc / (km_upt_c + doc)) * (o2 / (km_o2 + o2)) #microbial C uptake
+     cmin <- upt_c * (1 - cue) #C mineralization
+     upt_n <- mic_n * vmax_upt_n * (don / (km_upt_n + don)) * (o2 / (km_o2 + o2)) #microbial N uptake
+     death_c <- r_death * mic_c #microbial C turnover
+     death_n <- r_death * mic_n #microbial N turnover
+     enz_c <- p * cue * upt_c #amount of C available for enzyme production after C allocated to mineralization
+     enz_n <- q * upt_n #amount of N available for enzyme production
+     eprod <- ifelse(enz_c / cn_enz >= enz_n, enz_n, enz_c / cn_enz) #if enzyme production is N-limited, then number of enzyme produced = N cost for enzyme production (1 enzyme made for every 1 N used), else enzyme production C-limited
+     growth_c <- (1 - p) * upt_c * cue + enz_c - cn_enz * eprod #available C for biomass growth
+     growth_n <- (1 - q) * upt_n + enz_n - eprod #available N for biomass growth
+     growth <- ifelse(growth_c / cn_m >= growth_n, growth_n, growth_c / cn_m) #if microbes N-limited, then amount of microbial biomass growth equals cost of N to produce microbes, else growth is C-limited
+     overflow_c <- growth_c - cn_m * growth #extra C after microbial growth goes to overflow metabolism
+     nmin <- growth_n - growth #N mineralization
+     mic_c <- cn_m * growth - death_c #microbial biomass C pool, growth multiplied by C:N of microbes because growth = N cost to build a microbe, but C cost is greater
+     mic_n <- growth - death_n #microbial biomass N pool
+     eloss <- r_ecloss * ec #enzyme turnover
+     ec <- eprod - eloss #enzyme pool
+     decom_c <- vmax_c * a * ec * sol_soc / (km_c + sol_soc) #depolymerization of soc by enzymes
+     decom_n <- vmax_n * (1 - a) * ec * sol_son / (km_n + sol_son) #depolymerization of son by enzymes
+     soc <- litter_c + death_c * mic_to_soc - decom_c
+     son <- litter_n + death_n * mic_to_son - decom_n
+     doc <- doc_input + e + decom_c + death_c * (1 - mic_to_soc) + cn_enz / (1 + cn_enz) * eloss - upt_c #doc pool, enzyme turnover deposited here.
+     don <- don_input + e / cn_ex + decom_n + death_n * (1 - mic_to_son) + 1 / cn_enz * eloss - upt_n
+#don pool, enzyme turnover deposited here. because enzymes are not split up into separate pools within the model, the amount of C and N created by the turnover of an enzyme is calculated using the C:N of enzymes
+    return(c(mic_c, mic_n, ec, soc, son, doc, don))
+  })
+}
 ```
 
 ###Define pars
 ```{r}
-pars <- replicate(control$ndim,c(-Inf,Inf),simplify=F) #lower and upper bound for
+parRanges <- list(ea_up = c(50,100)) #ea_up
 ```
 
 ###Define initial state fx
 ```{r}
-cmat <- diag(control$ndim)
-cmat[1,1] <- 100
-bpar <- 0.1
-imat <- solve(cmat)
-muX=rep(0,control$ndim)
+OtherPars <- list(e = 0.00026, cn_ex = 27.6, cn_s = 27.6, cn_m = 10, cn_enz = 3, p = 0.5, q = 0.5, a = 0.5, r = 0.008314, r_death = 0.00015, r_ecloss = 0.001, mic_to_soc = 0.5, mic_to_son = 0.5, doc_input = 0.0005, litter_c = 0.0005, don_input = 0.0005/27.6, litter_n = 0.0005/27.6, a_upt_c = 1.0815e11, vmax_0 = 1.0815E11, ea_upt_c = 61.77, km_upt_c = 0.3, km_upt_n = 0.3, km_c = 0.0025, km_n = 0.0025, cue = 0.31, km_o2 = 0.121, dgas = 1.67, o2airfrac = 0.209, bd = 0.8, pd = 2.52, frac = 0.000414, dliq = 3.17,mic_c = 1.1957, mic_n = 0.1196, soc = 144.5986, son = 5.4413, doc = 0.00091631, don = 0.00049421, ec = 0.0325, soilm = 0.2, soilt=20)
+
+#state <- list(mic_c = 1.1957, mic_n = 0.1196, soc = 144.5986, son = 5.4413, doc = 0.00091631, don = 0.00049421, ec = 0.0325)
+
+muX=rep(61.77,control$ndim)
 qcov=diag(control$ndim)*5
+
+CovInit(pars=parRanges, nseq = control$nseq, muX = muX, qcov = qcov, bound.handling = control$boundHandling)
 ```
 
 ###Run it
 ```{r}
+library(dream)
+
 set.seed(11)
 
 dd <- dream(
-            FUN=Banshp, func.type="logposterior.density",
-            pars = pars,
-            FUN.pars=list(
-              imat=imat,
-              bpar=bpar),
+            FUN=snap, func.type="logposterior.density",
+            pars = parRanges,
+            FUN.pars = OtherPars,
             INIT = CovInit,
             INIT.pars=list(
               muX=muX,

@@ -1,0 +1,119 @@
+---
+title: "fmeQ10"
+author: "rza"
+date: "October 30, 2015"
+output: html_document
+---
+
+```{r}
+#Read in data from field measurements
+df <- read.csv("/Users/rzabramoff/Desktop/GW_CO2_prod.csv",header = T)
+df70 <- subset(df, depth == 50 & CO2_prod > 0)
+x <- df70$Temp
+y <- df70$CO2_prod
+Obs <- as.data.frame(cbind(x,y))
+```
+
+```{r}
+###########################
+### FME results
+
+Model <- function(p,x) return(data.frame(x=x,y=p[1]*p[2]^((x-10)/10)))
+#Model(c(0.1,2),Obs$x)
+
+library(FME)
+Residuals  <- function(p) {
+   cost<-modCost(model=Model(p,Obs$x),obs=Obs,x="x")
+}
+
+P      <- modFit(f=Residuals, p=c(10,2))
+print(P$par)
+
+plotFME <- function(){
+plot(Obs,xlab="temperature",ylab="mgCm-2h-1", pch=16, cex=1.5,
+     xlim=c(0,25),ylim=c(0,1))
+lines(Model(p=P$par,x=0:25))
+}
+
+##########################
+## DREAM results
+unloadNamespace("dream")
+library(dream)
+
+Model.y <- function(p,x) p[1]*p[2]^(x-10)/10
+pars <- list(p1=c(0,1),p2=c(0,100))
+
+control <- list(
+                nseq=4
+                )
+
+set.seed(456)
+dd <- dreamCalibrate(FUN=Model.y,
+                     pars=pars,
+                     obs=Obs$y,
+                     FUN.pars=list(x=Obs$x),
+                     control=control
+                     )
+
+print(dd)
+
+print(summary(dd))
+
+print(coef(dd))
+
+plot(dd)
+
+plotFME()
+lines(predict(dd,
+              newdata=list(x=0:25)),
+      col="green")
+
+
+## Compare likelihood function for coefficients obtained by dream and FME modfit
+dd$lik.fun(coef(dd)) #dream
+dd$lik.fun(P$par)    #FME
+
+########################
+## Calculate bounds around output estimates
+
+plotCIs <- function(x,cis,...){
+  em <- strwidth("M")/2
+  segments(x0=x,y0=cis[,1],
+           x1=x,y1=cis[,2],
+           ...
+           )
+  segments(x0=x-em,y0=cis[,1],
+           x1=x+em,y1=cis[,1],
+           ...
+           )
+  segments(x0=x-em,y0=cis[,2],
+           x1=x+em,y1=cis[,2],
+           ...
+           )
+}##plotCIs
+
+## Calibrate with Obs
+dd <- dreamCalibrate(
+                     FUN=Model.y,
+                     pars=pars,
+                     obs=Obs$y,
+                     FUN.pars=list(
+                       x=Obs$x
+                       ),
+                     control = control
+                     )
+
+##Obs
+plotFME()
+lines(sort(Obs$x),sort(predict(dd)),col="blue")
+lines(sort(Obs$x),sort(predict(dd,method="mean")),col="red")
+lines(sort(Obs$x),sort(predict(dd,method="median")),col="orange")
+plotCIs(sort(Obs$x),cbind(sort(predict(dd,method="CI")[,1]), sort(predict(dd,method="CI")[,2])),col="black")
+
+### Example with new sample
+dd.sim <- simulate(dd)
+plotFME()
+lines(sort(Obs$x),sort(predict(dd,list(x=Obs$x))),col="blue")
+lines(sort(Obs$x),sort(predict(dd.sim,list(x=Obs$x))),col="purple")
+```
+

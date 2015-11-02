@@ -1,0 +1,159 @@
+---
+title: "fmeDAMM"
+author: "rza"
+date: "October 30, 2015"
+output: html_document
+---
+
+```{r}
+#Read in data from field measurements
+mydataFlux<-read.csv("/Users/rzabramoff/Documents/records/dropbox backup/dropbox.6.1.2015/BU/Dissertation_Research/data 2014/Ch4/DAMM-MCNiP/hfdata.csv", sep=",",header=T, na.strings="NA")
+
+soilT<-as.data.frame(mydataFlux$SoilT) #degrees C
+soilM <-ifelse(mydataFlux$SoilM > 0.68, 0.68, mydataFlux$SoilM) #trip values are > porosity (0.6825397)
+soilM <-as.data.frame(soilM) #%
+areaCflux<-mydataFlux$flux*10000*10
+areaCflux<-as.data.frame(areaCflux) #mg C m-2 h-1 to 10cm
+```
+
+NOTE: stopped halfway down this chunk cuz not ODE
+```{r}
+###########################
+### FME results
+
+Model <- function(EaSx,soilT){
+  xAlphaSx<-5.38*10^10#1.0815e11 #5.38*10^10
+  kMSx<-9.95*10^-7 
+  soilM <- 0.229
+	R <- 8.314472e-3 #kJ K-1 mol-1
+	O2airfrac <- 0.209 #L O2 L-1 air
+	BD <- 0.80 #bulk density of soil
+	PD <- 2.52 #particle density of soil
+	porosity <- 1-BD/PD #total porosity
+	Sxtot <- 0.048 #C content (g/cm3)
+	psx <- 4.14e-4
+	Dliq <- 3.17
+	Dgas <- 1.67
+	kMO2 <- 0.121
+	Soildepth <- 10 #effective soil depth in cm
+
+	Sx <- Sxtot*psx*Dliq*(soilM)^3
+  O2 <- Dgas*O2airfrac*((porosity - soilM)^(4/3))
+	MMSx <- Sx/(kMSx+Sx)
+	MMO2 <- O2/(kMO2+O2)
+	VmaxSx <- xAlphaSx*exp(-EaSx/(R*(soilT+273.15)))
+	Resp <- VmaxSx*MMSx*MMO2
+	areaCflux <- 10000*Soildepth*Resp
+	return(areaCflux)
+}
+
+library(FME)
+Residuals  <- function(EaSx) {
+   cost<-modCost(model=Model(EaSx, soilT),obs=soilT)
+}
+
+P      <- modFit(f=Residuals,p=72)
+print(P$par)
+
+plotFME <- function(){
+plot(Obs,xlab="mg COD/l",ylab="1/hour", pch=16, cex=1.5,
+     xlim=c(25,400),ylim=c(0,0.15))
+lines(Model(p=P$par,x=0:375))
+}
+
+
+##########################
+## DREAM results
+
+
+unloadNamespace("dream")
+library(dream)
+
+Model.y <- function(p,x) p[1]*x/(x+p[2])
+pars <- list(p1=c(0,1),p2=c(0,100))
+
+control <- list(
+                nseq=4
+                )
+
+set.seed(456)
+dd <- dreamCalibrate(FUN=Model.y,
+                     pars=pars,
+                     obs=obs.all$y,
+                     FUN.pars=list(x=obs.all$x),
+                     control=control
+                     )
+
+print(dd)
+
+print(summary(dd))
+
+print(coef(dd))
+
+plot(dd)
+
+plotFME()
+lines(predict(dd,
+              newdata=list(x=0:375)),
+      col="green")
+
+
+## Compare likelihood function for coefficients obtained by dream and FME modfit
+dd$lik.fun(coef(dd))
+dd$lik.fun(P$par)
+
+########################
+## Calculate bounds around output estimates
+
+plotCIs <- function(x,cis,...){
+  em <- strwidth("M")/2
+  segments(x0=x,y0=cis[,1],
+           x1=x,y1=cis[,2],
+           ...
+           )
+  segments(x0=x-em,y0=cis[,1],
+           x1=x+em,y1=cis[,1],
+           ...
+           )
+  segments(x0=x-em,y0=cis[,2],
+           x1=x+em,y1=cis[,2],
+           ...
+           )
+}##plotCIs
+
+## Calibrate with Obs
+dd <- dreamCalibrate(
+                     FUN=Model.y,
+                     pars=pars,
+                     obs=Obs$y,
+                     FUN.pars=list(
+                       x=Obs$x
+                       ),
+                     control = control
+                     )
+
+##Obs1
+plotFME()
+lines(Obs$x,predict(dd),col="blue")
+lines(Obs$x,predict(dd,method="mean"),col="red")
+lines(Obs$x,predict(dd,method="median"),col="orange")
+plotCIs(Obs$x,predict(dd,method="CI"),col="black")
+
+##Obs2
+plotFME()
+lines(Obs2$x,predict(dd,list(x=Obs2$x)),col="blue")
+lines(Obs2$x,predict(dd,list(x=Obs2$x),method="mean"),col="red")
+lines(Obs2$x,predict(dd,list(x=Obs2$x),method="median"),col="orange")
+plotCIs(Obs2$x,predict(dd,list(x=Obs2$x),method="CI"),col="red")
+
+### Example with new sample
+dd.sim <- simulate(dd)
+plotFME()
+lines(Obs2$x,predict(dd,list(x=Obs2$x)),col="blue")
+lines(Obs2$x,predict(dd.sim,list(x=Obs2$x)),col="purple")
+
+
+## TODO: add residual error, using method p6, vrugt. equifinality
+
+```
+

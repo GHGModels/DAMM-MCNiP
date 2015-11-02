@@ -1,0 +1,254 @@
+---
+title: "fmeDMC"
+author: "rza"
+date: "October 31, 2015"
+output: html_document
+---
+Set up first Obs set
+```{r}
+#Read in data from field measurements
+df <-read.csv("/Users/rzabramoff/Documents/records/dropbox backup/dropbox.6.1.2015/BU/Dissertation_Research/data 2014/Ch4/mydataFlux.csv", sep=",",header=T, na.strings="NA")
+
+#Interpolate (linearly) gaps in data
+library(zoo)
+dz <- zoo(df)
+dz <- na.approx(dz)
+dz <- dz[4:length(dz$scale)-1]
+
+x <- dz$SoilT #deg C
+y <- dz$scale #mgC m-2 h-1 to 10cm
+
+Obs <- as.data.frame(cbind(x,y)) #hourly (4556) timestep!
+Obsd <- NULL
+Obsd$x <-rep(tapply(dz$SoilT, dz$DOY, mean) , each = 24)
+Obsd$y <-rep(tapply(dz$scale, dz$DOY, mean) , each = 24)
+Obsd <- as.data.frame(Obsd) #hourly (4560) but no diurnal variation!
+
+#Plot settings
+par(mfrow = c(1,1))
+```
+
+Set up 2013 and 2014 data
+```{r}
+kath <- read.csv("/Users/rzabramoff/Dropbox (Personal)/bu/dissertation_research/damm-mcnip/Kath_resp.csv")
+kath$Date <- as.Date(kath$Date)
+kath$root <- kath$Control - kath$CorrectedFlux #root resp = control - trenched (het resp)
+
+newdf <- as.data.frame(matrix(NA, nrow = 169, ncol = 10, dimnames=dimnames(kath[1:169,])))
+newdf$Date <- as.Date(as.Date("2013-11-13"):as.Date("2014-04-30"))
+repdf <- as.data.frame(matrix(NA, nrow = 26, ncol = 10, dimnames=dimnames(kath[1:26,])))
+repdf$Date <- as.Date(as.Date("2013-10-06"):as.Date("2013-10-31"))
+
+kz <- rbind(kath[1:171,],repdf,kath[198:209,],newdf,kath[210:length(kath$Date),])
+kzoo <- zoo(kz[,c(1,2,4,6)])
+kzoo[,3] <- na.approx(kzoo[,3])
+kzoo[,4] <- na.approx(kzoo[,4])
+kd <- as.data.frame(kzoo)
+kd$Date <- as.Date(kd$Date)
+kd$CorrectedFlux <- as.numeric(as.character(kd$CorrectedFlux)) 
+kd$soilT_T <- as.numeric(as.character(kd$soilT_T))
+plot(kd$Date, kd$CorrectedFlux) #trenched het resp in gC m-2 d-1
+plot(kd$Date, kd$soilT_T)
+
+#2013 and 2014 trenched data
+Obs2 <- NULL
+Obs2$x <-rep(kd$soilT_T , each = 24) #x = soil T in deg C 
+Obs2$y <-rep(kd$CorrectedFlux*1000/24, each = 24) #y = mgC m-2 h-1 (no diurnal var)
+Obs2 <- as.data.frame(Obs2)
+
+#2013 data only
+Obs3 <- NULL #
+Obs3$x <-rep(kd$soilT_T[6:195], each = 24) #x = soil T in deg C 
+Obs3$y <-rep(kd$CorrectedFlux[6:195]*1000/24, each = 24) #y = mgC m-2 h-1 (no diurnal var)
+Obs3 <- as.data.frame(Obs3)
+
+#2014 data only
+Obs4 <- NULL
+Obs4$x <-rep(kd$soilT_T[371:560], each = 24) #x = soil T in deg C 
+Obs4$y <-rep(kd$CorrectedFlux[371:560]*1000/24, each = 24) #y = mgC m-2 h-1 (no diurnal var)
+Obs4 <- as.data.frame(Obs4)
+```
+
+Consider splitting Obs2 into Obs2 &3
+Change timestep of Obs to daily
+Set up obs.all
+```{r}
+obs.all <- rbind(Obsd, Obs2) #no diurnal var
+
+dataUsed1 <- Obsd
+dataUsed2 <- Obs3
+dataUsed3 <- Obs4
+dataUsedAll <- obs.all
+```
+
+```{r}
+###########################
+### FME results
+Model <- function(p,x) {
+    vmax_0 <- 1.0815E11
+    #ea_up <- 61.77 <- p[1]
+    r <- 0.008314
+    a <- 0.5
+    ec <- 0.0325
+    #p[2] <- 0.0025 #km_c
+    soc <- 144.5986
+      x = x 
+      vmax_c = vmax_0 * exp(-p[1] / (r * (x + 273))) #calculate depolymerization kinetics #y=vmax_c
+      y = vmax_c * a * ec * soc / (p[2] + soc) #depolymerization of soc by enzymes
+  return(data.frame(x,y)) #x = temp, y = decom_c
+}
+#Model(62,Obs$x)
+
+library(FME)
+Residuals  <- function(p) {
+   cost<-modCost(model=Model(p,dataUsedAll$x),obs=dataUsedAll,x="x")
+}
+
+P      <- modFit(f=Residuals, p=c(62,0.0025))
+print(P$par)
+
+plotFME <- function(){
+plot(dataUsedAll,xlab="temperature",ylab="mgC cm-3 ts-1", pch=1, col=2, cex=1.5,
+     xlim=c(0,25), ylim=c(0,300))
+lines(Model(P$par,x=0:25))
+}
+```
+
+DREAM Calibrate 
+#Sucks at high dimensions
+```{r}
+##########################
+## DREAM results
+unloadNamespace("dream")
+library(dream)
+
+Model.y <- function(p,x) {
+    vmax_0 <- 1.0815E11
+    #ea_up <- 61.77 <- p[1]
+    r <- 0.008314
+    a <- 0.5
+    ec <- 0.0325
+    p[2] <- 0.0025 #km_c
+    soc <- 144.5986
+      vmax_c = vmax_0 * exp(-p[1] / (r * (x + 273))) #calculate depolymerization kinetics
+      vmax_c * a * ec * soc / (p[2] + soc) #depolymerization of soc by enzymes
+}
+
+pars <- list(p1=c(0,100))#, p2=c(-200,100))
+
+control <- list(
+                nseq=4
+                )
+
+set.seed(456)
+dd <- dreamCalibrate(FUN=Model.y,
+                     pars=pars,
+                     obs=dataUsedAll$y,
+                     FUN.pars=list(x=dataUsedAll$x),
+                     control=control
+                     )
+
+print(dd)
+
+print(summary(dd))
+
+chooseMeth = "uni.mode" #sample.ml is the default, and it does not work (at least not for fitting 1 param)
+print(coef(dd, method = chooseMeth)) 
+
+plot(dd, interactive = F)
+
+plotFME()
+lines(predict(dd, method=chooseMeth, 
+              newdata=list(x=0:25)),
+      col="green")
+legend("topleft",c("Data", "FME", "DREAM"), pch = c(1,NA,NA), lty = c(NA,1,1), col = c(2,1,"green"))
+
+
+## Compare likelihood function for coefficients obtained by dream and FME modfit
+dd$lik.fun(coef(dd, method = chooseMeth)) #dream
+dd$lik.fun(P$par)    #FME
+
+########################
+## Calculate bounds around output estimates
+
+plotCIs <- function(x,cis,...){
+  em <- strwidth("M")/2
+  segments(x0=x,y0=cis[,1],
+           x1=x,y1=cis[,2],
+           ...
+           )
+  segments(x0=x-em,y0=cis[,1],
+           x1=x+em,y1=cis[,1],
+           ...
+           )
+  segments(x0=x-em,y0=cis[,2],
+           x1=x+em,y1=cis[,2],
+           ...
+           )
+}##plotCIs
+
+```
+
+DREAM calibrate with one year, extend prediction to subsequent years
+```{r}
+## Calibrate with dataUsed1
+dd <- dreamCalibrate(
+                     FUN=Model.y,
+                     pars=pars,
+                     obs=dataUsed1$y,
+                     FUN.pars=list(
+                       x=dataUsed1$x
+                       ),
+                     control = control
+                     )
+
+plotFMEdat <- function(){
+plot(dataUsed1,xlab="temperature",ylab="mgC cm-3 ts-1", pch=1, col=1, cex=1.5,
+     xlim=c(0,25), ylim=c(0,300))
+points(dataUsed2, pch = 1, col = 2)
+points(dataUsed3, pch = 1, col = 6)
+lines(Model(P$par,x=0:25))
+}
+
+##DataUsed1
+plotFMEdat()
+lines(sort(dataUsed1$x),sort(predict(dd, method = chooseMeth)),col="blue")
+lines(sort(dataUsed1$x),sort(predict(dd,method="mean")),col="red")
+lines(sort(dataUsed1$x),sort(predict(dd,method="median")),col="orange")
+plotCIs(sort(dataUsed1$x),cbind(sort(predict(dd,method="CI")[,1]), sort(predict(dd,method="CI")[,2])),col="black")
+
+##DataUsed2
+plotFMEdat()
+lines(sort(dataUsed2$x),sort(predict(dd, method = chooseMeth)),col="blue")
+lines(sort(dataUsed2$x),sort(predict(dd,method="mean")),col="red")
+lines(sort(dataUsed2$x),sort(predict(dd,method="median")),col="orange")
+plotCIs(sort(dataUsed2$x),cbind(sort(predict(dd,method="CI")[,1]), sort(predict(dd,method="CI")[,2])),col="black")
+
+##DataUsed3
+plotFMEdat()
+lines(sort(dataUsed3$x),sort(predict(dd, method = chooseMeth)),col="blue")
+lines(sort(dataUsed3$x),sort(predict(dd,method="mean")),col="red")
+lines(sort(dataUsed3$x),sort(predict(dd,method="median")),col="orange")
+plotCIs(sort(dataUsed3$x),cbind(sort(predict(dd,method="CI")[,1]), sort(predict(dd,method="CI")[,2])),col="black")
+
+### Example with new sample
+dd.sim <- simulate(dd)
+plotFMEdat()
+lines(sort(dataUsed3$x),sort(predict(dd,list(x=dataUsed3$x))),col="blue")
+lines(sort(dataUsed3$x),sort(predict(dd.sim,list(x=dataUsed3$x))),col="purple")
+```
+
+DREAM MCMC
+```{r}
+dd <- dream(
+                     FUN=Model.y,
+                     func.type = "logposterior.density",
+                     pars=pars,
+                     measurement=list(y= dataUsed1$y),
+                     FUN.pars=list(
+                       x=dataUsed1$x
+                       ),
+                     control = control
+                     )
+```
+
