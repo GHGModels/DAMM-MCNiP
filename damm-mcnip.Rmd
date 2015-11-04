@@ -9,7 +9,7 @@ output: html_document
 ##Model options
 ```{r options}
 #runtime (hours)
-times.def <<- seq(0,50,by=0.5)
+times.def <<- seq(1,4560)
 ```
 
 ##Parameter options
@@ -102,8 +102,8 @@ derivs <- function(t, state, pars) {
     return(list(c(dmic_c, dmic_n, dec, dsoc, dson, ddoc, ddon)))
   })
 }
-temp <- approxfun(soilt, method = "linear", rule = 2) #create function for input data
-mois <- approxfun(soilm, method = "linear", rule = 2) #create function for input data
+temp <- approxfun(rep(13, 4560))#approxfun(soilt, method = "linear", rule = 2) #create function for input data
+mois <- approxfun(rep(0.3, 4560))#approxfun(soilm, method = "linear", rule = 2) #create function for input data
 #solve function using ode solver
 return(ode(state, times, derivs, pars))
 }
@@ -119,7 +119,7 @@ legend("topright", colnames(out[,-1]), lty = 1:(ncol(out) -1))
 ```
 
 ##Global Sensitivity Analysis
-```{r globsens}
+```{r globsens, eval=FALSE}
 #sensitivity of variables in sensvar to the parameters in parRanges
 #looped -> but could be vectorized to save time (approx 1 user sec/parameter)
 for (i in 1:nrow(parRanges)){
@@ -132,12 +132,12 @@ sR <- sensRange(func = snap, parms = pars, dist = "grid", sensvar, parRange = pa
   }
 ```
 
-```{r parset, echo = FALSE}
+```{r parset, echo = FALSE, eval=FALSE}
 par(mfrow = c(1,1))
 ```
 
 Sensitivity range for the combination of all parameters in `parRanges`
-```{r senscomb}
+```{r senscomb, eval=FALSE}
 SensComb <- summary(sensRange(func = snap, parms = pars, dist = "latin", sensvar = sensvar, parRange = parRanges, num = 100))
 
 plot(SensComb, main = paste("Sensitivity of", sensvar, "to all params"), xlab = "time (hours)", ylab = "mol C/m3")
@@ -146,7 +146,7 @@ box("outer", lwd = 3, col = 2)
 
 
 ##Local Sensitivity Analysis
-```{r localsens}
+```{r localsens, eval=FALSE}
 #reminder: sensvar is predefined and may be more than one pool
 SensLoc <- sensFun(func = snap, parms = pars, sensvar = sensvar, varscale = 1)
 
@@ -161,7 +161,7 @@ pairs(SensLoc)
 ```
 
 ##Stability analysis
-```{r stabil}
+```{r stabil, eval=FALSE}
 #final concentration of pools as function of params
 snap.mc <- function(pars) {
   out <- snap(pars)
@@ -178,7 +178,7 @@ box("outer", lwd = 3 , col = 2)
 ```
 
 #Parameter Identifiability
-```{r parident}
+```{r parident, eval=FALSE}
 #reminder: sensvar is predefined and may be more than one pool
 #this is repeated below in mcmc but with data
 coll <- collin(SensLoc)
@@ -187,7 +187,7 @@ goodColl[goodColl$N == (max(goodColl$N)),]
 ```
 
 #Standard Parameter Fitting
-```{r parfit, eval= FALSE}
+```{r parfit, eval= FALSE, eval=FALSE}
 #input some dummy micc data
 Data1 <- matrix (nc=2,byrow=2,data= c( 2, 0.14, 4, 0.21, 6, 0.31, 8, 0.40, + 10, 0.69, 12, 0.97, 14, 1.42, 16, 2.0, 18, 3.0, 20, 4.5, 22, 6.5, 24, 9.5, 26, 13.5, 28, 20.5, 30, 29 , 35, 65, 40, 61))
 colnames(Data1) <- c("time", "micc")
@@ -236,7 +236,7 @@ plot(Cost, xlab = "time (hours)", ylab = "", main = "residuals")
 ```
 
 ##MCMC
-```{r mcmc, eval=FALSE}
+```{r mcmc, eval=FALSE, eval=FALSE}
 #sumfit$modVariance is the initial model error variance
 #1/modVariance is drawn from gamma dist
 

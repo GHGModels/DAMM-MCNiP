@@ -5,7 +5,7 @@ date: "October 31, 2015"
 output: html_document
 ---
 Set up first Obs set
-```{r}
+```{r data1}
 #Read in data from field measurements
 df <-read.csv("/Users/rzabramoff/Documents/records/dropbox backup/dropbox.6.1.2015/BU/Dissertation_Research/data 2014/Ch4/mydataFlux.csv", sep=",",header=T, na.strings="NA")
 
@@ -29,7 +29,7 @@ par(mfrow = c(1,1))
 ```
 
 Set up 2013 and 2014 data
-```{r}
+```{r data2}
 kath <- read.csv("/Users/rzabramoff/Dropbox (Personal)/bu/dissertation_research/damm-mcnip/Kath_resp.csv")
 kath$Date <- as.Date(kath$Date)
 kath$root <- kath$Control - kath$CorrectedFlux #root resp = control - trenched (het resp)
@@ -72,51 +72,85 @@ Obs4 <- as.data.frame(Obs4)
 Consider splitting Obs2 into Obs2 &3
 Change timestep of Obs to daily
 Set up obs.all
-```{r}
+```{r data3}
 obs.all <- rbind(Obsd, Obs2) #no diurnal var
+time <- 1:4560
+  
+dataUsed1 <- cbind(time,Obsd)
+dataUsed2 <- cbind(time,Obs3)
+dataUsed3 <- cbind(time,Obs4)
+dataUsedAll <- cbind(1:length(obs.all),obs.all)
 
-dataUsed1 <- Obsd
-dataUsed2 <- Obs3
-dataUsed3 <- Obs4
-dataUsedAll <- obs.all
+name <- rep(decom_c,4560)
+datafme <- as.data.frame(cbind(name = name,time = time, val = Obsd$y))
+datafme$time <- as.numeric(datafme$time)
+datafme$val <- as.numeric(datafme$val)
 ```
 
+Set up parameters for ODE
 ```{r}
+p <- list(ea_up = 61.77)
+```
+
+Run ODE version of model
+```{r fme}
 ###########################
 ### FME results
-Model <- function(p,x) {
-    vmax_0 <- 1.0815E11
-    #ea_up <- 61.77 <- p[1]
-    r <- 0.008314
-    a <- 0.5
-    ec <- 0.0325
-    #p[2] <- 0.0025 #km_c
-    soc <- 144.5986
-      x = x 
-      vmax_c = vmax_0 * exp(-p[1] / (r * (x + 273))) #calculate depolymerization kinetics #y=vmax_c
-      y = vmax_c * a * ec * soc / (p[2] + soc) #depolymerization of soc by enzymes
-  return(data.frame(x,y)) #x = temp, y = decom_c
+###Setup and solve ode
+Model <- function (p, times=seq(1,4560)) {
+    derivs <- function(t,s,p) { #p = pars, s = state, t = time
+        with(as.list(c(s,p)), {
+              vmax_0 <- 1.0815E11
+              r <- 0.008314
+              a <- 0.5
+              ec <- 0.0325
+              km_c <- 0.0025
+              litter_c <- 0.0005
+              r_death <- 0.00015
+              mic_c <- 0.5
+              mic_to_soc <- 0.5
+              temp <- 20
+                    vmax_c = vmax_0 * exp(-ea_up / (r * (temp + 273))) #calculate depolymerization kinetics
+                    death_c <- r_death * mic_c #microbial C turnover
+                    decom_c = vmax_c * a * ec * soc / (km_c + soc) #depolymerization of soc by enzymes
+                    dsoc = litter_c + death_c *mic_to_soc - decom_c
+                    ddecom_c = decom_c
+              return(list(c(dsoc, ddecom_c)))
+        })
+    }
+    s <- c(soc = 144.5986, decom_c = 0) 
+    #temp <- approxfun(dataUsed1$x) #approxfun(rep(13,4560))
+    return(ode(y = s, times=times, func=derivs, parms = p))
 }
-#Model(62,Obs$x)
+out <- as.data.frame(Model(p))
+head(out)
+par(mfrow=c(2,1))
+plot(out$time, out$soc)
+plot(out$time, out$decom_c)
+```
 
-library(FME)
+FME
+```{r}
+#library(FME)
 Residuals  <- function(p) {
-   cost<-modCost(model=Model(p,dataUsedAll$x),obs=dataUsedAll,x="x")
+   cost<-modCost(model=Model(p),obs=datafme, x="time", y="val") ####y is decom_c?? YESSS! it works anyway...
 }
 
-P      <- modFit(f=Residuals, p=c(62,0.0025))
+P      <- modFit(f=Residuals, p=c(ea_up = 62))
 print(P$par)
 
 plotFME <- function(){
-plot(dataUsedAll,xlab="temperature",ylab="mgC cm-3 ts-1", pch=1, col=2, cex=1.5,
+plot(dataUsed1$x, dataUsed1$y,xlab="temperature",ylab="mgC cm-3 ts-1", pch=1, col=2, cex=1.5,
      xlim=c(0,25), ylim=c(0,300))
-lines(Model(P$par,x=0:25))
+lines(Model(P$par))
 }
+
+plotFME()
 ```
 
 DREAM Calibrate 
 #Sucks at high dimensions
-```{r}
+```{r dreamcalibrate}
 ##########################
 ## DREAM results
 unloadNamespace("dream")
@@ -155,7 +189,7 @@ print(summary(dd))
 chooseMeth = "uni.mode" #sample.ml is the default, and it does not work (at least not for fitting 1 param)
 print(coef(dd, method = chooseMeth)) 
 
-plot(dd, interactive = F)
+#plot(dd, interactive = F)
 
 plotFME()
 lines(predict(dd, method=chooseMeth, 
@@ -190,7 +224,7 @@ plotCIs <- function(x,cis,...){
 ```
 
 DREAM calibrate with one year, extend prediction to subsequent years
-```{r}
+```{r dreamcalibratedata}
 ## Calibrate with dataUsed1
 dd <- dreamCalibrate(
                      FUN=Model.y,
@@ -232,14 +266,14 @@ lines(sort(dataUsed3$x),sort(predict(dd,method="median")),col="orange")
 plotCIs(sort(dataUsed3$x),cbind(sort(predict(dd,method="CI")[,1]), sort(predict(dd,method="CI")[,2])),col="black")
 
 ### Example with new sample
-dd.sim <- simulate(dd)
-plotFMEdat()
-lines(sort(dataUsed3$x),sort(predict(dd,list(x=dataUsed3$x))),col="blue")
-lines(sort(dataUsed3$x),sort(predict(dd.sim,list(x=dataUsed3$x))),col="purple")
+# dd.sim <- simulate(dd)
+# plotFMEdat()
+# lines(sort(dataUsed3$x),sort(predict(dd,list(x=dataUsed3$x))),col="blue")
+# lines(sort(dataUsed3$x),sort(predict(dd.sim,list(x=dataUsed3$x))),col="purple")
 ```
 
 DREAM MCMC
-```{r}
+```{r dreammcmc, eval=FALSE}
 dd <- dream(
                      FUN=Model.y,
                      func.type = "logposterior.density",

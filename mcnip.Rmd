@@ -121,7 +121,7 @@ plot(out[,1], out[,4])
 ```
 
 ##Global Sensitivity Analysis
-```{r globsens}
+```{r globsens, eval = F}
 #sensitivity of variables in sensvar to the parameters in parRanges
 #looped -> but could be vectorized to save time (approx 1 user sec/parameter)
 for (i in 1:nrow(parRanges)){
@@ -134,12 +134,12 @@ sR <- sensRange(func = snap, parms = pars, dist = "unif", sensvar, parRange = pa
   }
 ```
 
-```{r parset, echo = FALSE}
+```{r parset, echo = FALSE, eval = F}
 par(mfrow = c(1,1))
 ```
 
 Sensitivity range for the combination of all parameters in `parRanges`
-```{r senscomb}
+```{r senscomb, eval = F}
 SensComb <- summary(sensRange(func = snap, parms = pars, dist = "unif", sensvar = sensvar, parRange = parRanges, num = 100))
 
 plot(SensComb, main = paste("Sensitivity of", sensvar, "to all params"), xlab = "time (hours)", ylab = "mol C/m3")
@@ -148,7 +148,7 @@ box("outer", lwd = 3, col = 2)
 
 
 ##Local Sensitivity Analysis
-```{r localsens, warning=FALSE}
+```{r localsens, warning=FALSE, eval = F}
 #reminder: sensvar is predefined and may be more than one pool
 SensLoc <- sensFun(func = snap, parms = pars, sensvar = sensvar, varscale = 1)
 
@@ -163,7 +163,7 @@ pairs(SensLoc)
 ```
 
 ##Stability analysis
-```{r stabil}
+```{r stabil, eval = F}
 #final concentration of pools as function of params
 snap.mc <- function(pars) {
   out <- snap(pars)
@@ -189,7 +189,7 @@ goodColl[goodColl$N == (max(goodColl$N)),]
 ```
 
 #Standard Parameter Fitting
-```{r parfit}
+```{r parfit, eval = F}
 #input some dummy micc data
 Data1 <- matrix (nc=2,byrow=2,data= c( 2, 0.14, 4, 0.21, 6, 0.31, 8, 0.40, 10, 0.69, 12, 0.97, 14, 1.42, 16, 2.0, 18, 3.0, 20, 4.5, 22, 6.5, 24, 9.5, 26, 13.5, 28, 20.5, 30, 29 , 35, 65, 40, 61))
 colnames(Data1) <- c("time", "mic_c")
