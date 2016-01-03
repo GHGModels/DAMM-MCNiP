@@ -1,0 +1,422 @@
+---
+title: "fmeDMC"
+author: "rza"
+date: "October 31, 2015"
+output: html_document
+---
+Libraries
+```{r}
+library(zoo)
+library(FME)
+```
+
+
+Set up first Obs set
+```{r data1}
+#Read in data from field measurements
+df <-read.csv("/Users/rzabramoff/Documents/records/dropbox backup/dropbox.6.1.2015/BU/Dissertation_Research/data 2014/Ch4/mydataFlux.csv", sep=",",header=T, na.strings="NA") #scale is mgC m2 h-1 ...assume to 10cm depth?
+df$SoilM <-  ifelse(df$SoilM > 0.5, 0.5, df$SoilM)
+
+#conversions
+m2cm3 <- 100*100*10
+
+#Interpolate (linearly) gaps in data
+dz <- zoo(df)
+dz <- na.approx(dz)
+dz <- dz[4:length(dz$scale)-1]
+
+m <- dz$SoilM
+x <- dz$SoilT #deg C
+y <- dz$scale/(m2cm3) #mgC cm-3 h-1 to 10cm
+
+##Output hourly gapfilled data object for matlab sensitivity analysis
+a <- dz$SoilM
+b <- dz$SoilT #deg C
+c <- dz$scale
+hfHourlyGapfillMatlab <- as.data.frame(cbind(a,b,c))
+write.csv(hfHourlyGapfillMatlab, file = "/Users/rzabramoff/Documents/MATLAB/microbial_model_trunk/sensitivity_analysis/hfHourlyGapfilled.csv")
+
+Obs <- as.data.frame(cbind(m,x,y)) #hourly (4556) timestep!
+Obsd <- NULL
+Obsd$m <-rep(tapply(dz$SoilM, dz$DOY, mean) , each = 24)
+Obsd$x <-rep(tapply(dz$SoilT, dz$DOY, mean) , each = 24) 
+Obsd$y <-rep(tapply(dz$scale/(m2cm3), dz$DOY, mean) , each = 24) #mgC cm-3 h-1 to 10cm
+Obsd <- as.data.frame(Obsd) #hourly (4560) but no diurnal variation!
+
+DailyGapfillForMatlab <- NULL
+DailyGapfillForMatlab$mois <- tapply(dz$SoilM, dz$DOY, mean) 
+DailyGapfillForMatlab$temp <- tapply(dz$SoilT, dz$DOY, mean) 
+DailyGapfillForMatlab$scale <- tapply(dz$scale, dz$DOY, mean) #mgC m2 hr-1
+DailyGapfillForMatlab <- as.data.frame(DailyGapfillForMatlab)
+write.csv(DailyGapfillForMatlab, file = "/Users/rzabramoff/Documents/MATLAB/microbial_model_trunk/sensitivity_analysis/hfDailyGapfilled.csv")
+write.table(DailyGapfillForMatlab, file = "/Users/rzabramoff/Documents/MATLAB/microbial_model_trunk/sensitivity_analysis/hfDailyGapfilled.txt", quote=F)
+
+#Plot settings
+par(mfrow = c(1,1))
+```
+
+Set up 2013 and 2014 data
+```{r data2}
+kath <- read.csv("/Users/rzabramoff/Dropbox (Personal)/bu/dissertation_research/damm-mcnip/Kath_resp.csv")
+kath$Date <- as.Date(kath$Date)
+kath$root <- kath$Control - kath$CorrectedFlux #root resp = control - trenched (het resp)
+
+newdf <- as.data.frame(matrix(NA, nrow = 169, ncol = 10, dimnames=dimnames(kath[1:169,])))
+newdf$Date <- as.Date(as.Date("2013-11-13"):as.Date("2014-04-30"))
+repdf <- as.data.frame(matrix(NA, nrow = 26, ncol = 10, dimnames=dimnames(kath[1:26,])))
+repdf$Date <- as.Date(as.Date("2013-10-06"):as.Date("2013-10-31"))
+
+kz <- rbind(kath[1:171,],repdf,kath[198:209,],newdf,kath[210:length(kath$Date),])
+kzoo <- zoo(kz[,c(1,2,4,6,7)])
+kzoo[,3] <- na.approx(kzoo[,3])
+kzoo[,4] <- na.approx(kzoo[,4])
+kzoo[,5] <- na.approx(kzoo[,5])
+kd <- as.data.frame(kzoo)
+kd$Date <- as.Date(kd$Date)
+kd$CorrectedFlux <- as.numeric(as.character(kd$CorrectedFlux)) 
+kd$soilT_T <- as.numeric(as.character(kd$soilT_T))
+kd$VSM_T <- as.numeric(as.character(kd$VSM_T))
+plot(kd$Date, kd$CorrectedFlux) #trenched het resp in gC m-2 d-1
+plot(kd$Date, kd$soilT_T)
+
+#2013 and 2014 trenched data
+Obs2 <- NULL
+Obs2$m <- rep(kd$VSM_T , each = 24) #m = volumetric soil moisture in /
+Obs2$x <-rep(kd$soilT_T , each = 24) #x = soil T in deg C
+Obs2$y <-rep(kd$CorrectedFlux*1000/(24*m2cm3), each = 24) #y = mgC cm-3 h-1 (no diurnal var)
+Obs2 <- as.data.frame(Obs2)
+
+#2013 data only
+Obs3 <- NULL
+Obs3$m <- rep(kd$VSM_T[6:195] , each = 24) #m = volumetric soil moisture in /
+Obs3$x <-rep(kd$soilT_T[6:195], each = 24) #x = soil T in deg C 
+Obs3$y <-rep(kd$CorrectedFlux[6:195]*1000/(24*m2cm3), each = 24) #y = mgC cm-3 h-1 (no diurnal var)
+Obs3 <- as.data.frame(Obs3)
+
+#2014 data only
+Obs4 <- NULL
+Obs4$m <- rep(kd$VSM_T[371:560] , each = 24) #m = volumetric soil moisture in /
+Obs4$x <-rep(kd$soilT_T[371:560], each = 24) #x = soil T in deg C 
+Obs4$y <-rep(kd$CorrectedFlux[371:560]*1000/(24*m2cm3), each = 24) #y = mgC cm-3 h-1 (no diurnal var)
+Obs4 <- as.data.frame(Obs4)
+```
+
+Consider splitting Obs2 into Obs2 &3
+Change timestep of Obs to daily
+Set up obs.all
+```{r data3}
+obs.all <- rbind(Obsd, Obs2) #no diurnal var
+time <- 1:4560
+  
+dataUsed1 <- cbind(time,Obsd)
+dataUsed2 <- cbind(time,Obs3)
+dataUsed3 <- cbind(time,Obs4)
+dataUsedAll <- cbind(1:length(obs.all),obs.all)
+
+name <- rep("decom_c",4560)
+datafme <- as.data.frame(cbind(name = name,time = time, val = Obsd$y))
+datafme$time <- as.numeric(as.character((datafme$time)))
+datafme$val <- as.numeric(as.character((datafme$val)))
+```
+
+Set up parameters for ODE
+```{r}
+p <- list(ea_up = 61.77)
+```
+
+Dynamic ODE model
+```{r fme}
+###########################
+### FME results
+###Setup and solve ode
+Model <- function (p, times=seq(1,4561)) {
+    derivs <- function(t,s,p) { #p = pars, s = state, t = time
+        with(as.list(c(s,p)), {
+              #ea_up <- 61.77
+              vmax_0 <- 1.0815E11
+              r <- 0.008314
+              a <- 0.5
+              ec <- 0.0325
+              km_c <- 0.0025
+              litter_c <- 0.0005
+              r_death <- 0.00015
+              mic_c <- 0.5
+              mic_to_soc <- 0.5
+              bd <- 0.8
+              pd <- 2.52
+              dgas <- 1.67
+              o2airfrac <- 0.209
+              dliq <- 3.17
+              frac <- 0.000414
+              km_o2 <- 0.121
+              mois <- 0.3
+              #temp <- 20
+                    porosity = 1 - bd/pd
+                    o2 <- dgas * o2airfrac * (porosity - mois)^(4/3)
+                    sol_soc <- dliq * mois^3 * frac * soc
+                    vmax_c = vmax_0 * exp(-ea_up / (r * (temp(t) + 273))) #calculate depolymerization kinetics
+                    death_c <- r_death * mic_c #microbial C turnover
+                    decom_c = vmax_c * a * ec * sol_soc / (km_c + sol_soc) * o2/(km_o2 + o2) #depolymerization of soc by enzymes
+                    dsoc = litter_c + death_c *mic_to_soc - decom_c
+                    ddecom_c = decom_c
+              return(list(c(dsoc, ddecom_c)))
+        })
+    }
+    s <- c(soc = 144.5986, decom_c = 0) 
+    temp <- approxfun(dataUsed1$time, dataUsed1$x) #approxfun(rep(13,4560))
+    #mois <- approxfun(dataUsed1$m)
+    dieAntwoord <- ode(y = s, times=times, func=derivs, parms = p)
+    return(as.data.frame(cbind(time = dieAntwoord[1:4560,1], decom_c = diff(dieAntwoord[,3])))) #fix length
+}
+out <- as.data.frame(Model(p))
+head(out)
+plot(out$time, out$decom_c*m2cm3)
+```
+
+Steady-state model for fitting
+```{r fme}
+###########################
+### FME results
+###Setup and solve ode
+Model.ss <- function (p, x, m) { #p1=ea_up #p2=vmax_0
+              #vmax_0 <- 1.0815E11
+              r <- 0.008314
+              a <- 0.5
+              ec <- 0.0325
+              km_c <- 0.0025
+              litter_c <- 0.0005
+              r_death <- 0.00015
+              mic_c <- 0.5
+              mic_to_soc <- 0.5
+              bd <- 0.8
+              pd <- 2.52
+              dgas <- 1.67
+              o2airfrac <- 0.209
+              dliq <- 3.17
+              frac <- 0.000414
+              km_o2 <- 0.121
+              #mois <- 0.3
+              soc <- 144.5986
+              decom_c <-0
+              x = x
+              m = m
+                    porosity = 1 - bd/pd
+                    o2 <- dgas * o2airfrac * (porosity - m)^(4/3)
+                    sol_soc <- dliq * m^3 * frac * soc
+                    vmax_c = p[2] * exp(-p[1] / (r * (x + 273))) #calculate depolymerization kinetics
+                    death_c <- r_death * mic_c #microbial C turnover
+                    y = vmax_c * a * ec * sol_soc / (km_c + sol_soc) * o2/(km_o2 + o2) #depolymerization of soc by enzymes
+                    dsoc = litter_c + death_c *mic_to_soc - y
+              return(data.frame(cbind(x, m, y))) #x=temp, m=soil moisture, y=decom_c
+}
+
+x <- dataUsed1$x
+m <- dataUsed1$m
+p <- c(62,1e11)    #####set par value
+out <- Model.ss(p, x, m) 
+head(out)
+# soc <- NULL
+# for (i in 1:length(out$dsoc)){
+#   soc[1] <- 144.5986
+#   soc[i+1] <- soc[i] + out$dsoc[i]
+# }
+# plot(soc)
+plot(out$y)
+```
+
+FME fitting with vars
+```{r}
+library(FME)
+# dataUsed <- as.data.frame(rbind(cbind(rep("m",length(dataUsed1[,2])), dataUsed1[,2]),cbind(rep("x",length(dataUsed1[,3])), dataUsed1[,3]),cbind(rep("y",length(dataUsed1[,4])), dataUsed1[,4])))
+# names(dataUsed) <- c("name", "val")
+# outfo <- Model.ss(p, dataUsed1$x, dataUsed1$m)
+# outfo1 <- cbind(rep("x", length(outfo1)),outfo$x,outfo$y)
+# outfo2 <- cbind(rep("m", length(outfo2)),outfo$m,outfo$y)
+# outfok <- as.data.frame(rbind(outfo1,outfo2))
+# names(outfok) <- c("name","x","y")
+# outfok$x <- as.numeric(as.character(outfok$x))
+# outfok$y <- as.numeric(as.character(outfok$y))
+dataT <- dataUsed1[,c(3:4)]
+dataM <- dataUsed1[,c(2,4)]
+
+Residuals  <- function(p) {
+   cost<-modCost(model=Model.ss(p, dataUsed1$x, dataUsed1$m),obs=dataT, x="x") #fix temp AND soilm
+}
+
+P      <- modFit(f=Residuals, p=c(62,1e11))
+print(P$par)
+
+
+plotFME <- function(){
+plot(dataUsed1$x, dataUsed1$y*m2cm3,xlab="temperature",ylab="mgC m-2 h-1", pch=1, col=2, cex=1.5,
+     xlim=c(0,25))
+lines(Model.ss(P$par, x=0:25)$x, Model.ss(P$par, x=0:25)$y*m2cm3)
+}
+
+plotFME()
+```
+
+#Stash for now
+workshop DREAM model
+```{r, eval=FALSE}
+Model.ssd <- function (p, x) { #p1=ea_up #p2=vmax_0
+              #vmax_0 <- 1.0815E11
+              r <- 0.008314
+              a <- 0.5
+              ec <- 0.0325
+              km_c <- 0.0025
+              litter_c <- 0.0005
+              r_death <- 0.00015
+              mic_c <- 0.5
+              mic_to_soc <- 0.5
+              bd <- 0.8
+              pd <- 2.52
+              dgas <- 1.67
+              o2airfrac <- 0.209
+              dliq <- 3.17
+              frac <- 0.000414
+              km_o2 <- 0.121
+              mois <- 0.3
+              soc <- 144.5986
+              decom_c <-0
+              x = x
+                    porosity = 1 - bd/pd
+                    o2 <- dgas * o2airfrac * (porosity - mois)^(4/3)
+                    sol_soc <- dliq * mois^3 * frac * soc
+                    vmax_c = p[2] * exp(-p[1] / (r * (x + 273))) #calculate depolymerization kinetics
+                    death_c <- r_death * mic_c #microbial C turnover
+                    y = vmax_c * a * ec * sol_soc / (km_c + sol_soc) * o2/(km_o2 + o2) #depolymerization of soc by enzymes
+                    #dsoc = litter_c + death_c *mic_to_soc - y
+              return(y) #y=decom_c
+}
+
+head(Model.ssd(p,x))
+```
+
+
+DREAM Calibrate 
+#Sucks at higher than one dimension
+```{r dreamcalibrate, eval=FALSE}
+##########################
+## DREAM results
+unloadNamespace("dream")
+library(dream)
+
+pars <- list(p1=c(0,100),p2=c(1e10,1e15))
+
+control <- list(
+                nseq=4
+                )
+
+set.seed(456)
+ptm <- proc.time() #five minutes?? what the hell... and adding temp breaks it
+dd <- dreamCalibrate(FUN=Model.ssd,
+                     pars=pars,
+                     obs=dataUsed1$y,
+                     FUN.pars=list(x=dataUsed1$x),
+                     control=control
+                     )
+proc.time() - ptm
+
+print(dd)
+
+print(summary(dd))
+
+chooseMeth = "uni.mode" #sample.ml is the default, and it does not work (at least not for fitting 1 param)
+print(coef(dd, method = chooseMeth)) 
+
+plot(dd, interactive = F)
+
+plotFME()
+lines(m2cm3*predict(dd, method=chooseMeth,newdata=list(x=0:25)),col="green")
+legend("topleft",c("Data", "FME", "DREAM"), pch = c(1,NA,NA), lty = c(NA,1,1), col = c(2,1,"green"))
+
+
+## Compare likelihood function for coefficients obtained by dream and FME modfit
+dd$lik.fun(coef(dd, method = chooseMeth)) #dream
+dd$lik.fun(P$par)    #FME
+
+########################
+## Calculate bounds around output estimates
+
+plotCIs <- function(x,cis,...){
+  em <- strwidth("M")/2
+  segments(x0=x,y0=cis[,1],
+           x1=x,y1=cis[,2],
+           ...
+           )
+  segments(x0=x-em,y0=cis[,1],
+           x1=x+em,y1=cis[,1],
+           ...
+           )
+  segments(x0=x-em,y0=cis[,2],
+           x1=x+em,y1=cis[,2],
+           ...
+           )
+}##plotCIs
+
+```
+
+DREAM calibrate with one year, extend prediction to subsequent years
+```{r dreamcalibratedata, eval=FALSE}
+## Calibrate with dataUsed1
+# dd <- dreamCalibrate(
+#                      FUN=Model.ssd,
+#                      pars=pars,
+#                      obs=dataUsed1$y,
+#                      FUN.pars=list(
+#                        x=dataUsed1$x
+#                        ),
+#                      control = control
+#                      )
+
+plotFMEdat <- function(){
+plot(dataUsed1$x, dataUsed1$y*m2cm3,xlab="temperature",ylab="mgC m-2 h-1", pch=1, col=1, cex=1.5,
+     xlim=c(0,25), ylim=c(0,300))
+points(dataUsed2$x, dataUsed2$y*m2cm3, pch = 1, col = 2)
+points(dataUsed3$x, dataUsed3$y*m2cm3, pch = 1, col = 6)
+lines(Model.ss(P$par, x=0:25)$x, Model.ss(P$par, x=0:25)$y*m2cm3)
+}
+
+##DataUsed1
+plotFMEdat()
+lines(sort(dataUsed1$x),sort(predict(dd, method = chooseMeth)*m2cm3),col="blue")
+lines(sort(dataUsed1$x),sort(predict(dd,method="mean")*m2cm3),col="red")
+lines(sort(dataUsed1$x),sort(predict(dd,method="median")*m2cm3),col="orange")
+plotCIs(sort(dataUsed1$x),cbind(sort(predict(dd,method="CI")[,1]*m2cm3), sort(predict(dd,method="CI")[,2]*m2cm3)),col="black")
+
+##DataUsed2
+plotFMEdat()
+lines(sort(dataUsed2$x),sort(predict(dd, method = chooseMeth)*m2cm3),col="blue")
+lines(sort(dataUsed2$x),sort(predict(dd,method="mean")*m2cm3),col="red")
+lines(sort(dataUsed2$x),sort(predict(dd,method="median")*m2cm3),col="orange")
+plotCIs(sort(dataUsed2$x),cbind(sort(predict(dd,method="CI")[,1]*m2cm3), sort(predict(dd,method="CI")[,2]*m2cm3)),col="black")
+
+##DataUsed3
+plotFMEdat()
+lines(sort(dataUsed3$x),sort(predict(dd, method = chooseMeth)*m2cm3),col="blue")
+lines(sort(dataUsed3$x),sort(predict(dd,method="mean")*m2cm3),col="red")
+lines(sort(dataUsed3$x),sort(predict(dd,method="median")*m2cm3),col="orange")
+plotCIs(sort(dataUsed3$x),cbind(sort(predict(dd,method="CI")[,1]*m2cm3), sort(predict(dd,method="CI")[,2]*m2cm3)),col="black")
+
+### Example with new sample
+# dd.sim <- simulate(dd)
+# plotFMEdat()
+# lines(sort(dataUsed3$x),sort(predict(dd,list(x=dataUsed3$x))),col="blue")
+# lines(sort(dataUsed3$x),sort(predict(dd.sim,list(x=dataUsed3$x))),col="purple")
+```
+
+DREAM MCMC
+```{r dreammcmc, eval=FALSE}
+dd <- dream(
+                     FUN=Model.y,
+                     func.type = "logposterior.density",
+                     pars=pars,
+                     measurement=list(y= dataUsed1$y),
+                     FUN.pars=list(
+                       x=dataUsed1$x
+                       ),
+                     control = control
+                     )
+```
+

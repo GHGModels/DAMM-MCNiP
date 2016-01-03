@@ -1,0 +1,21 @@
+%make damm-mcnip figures script
+
+load('/Users/rzabramoff/Documents/MATLAB/microbial_model_trunk/safe_R1.1/vbsa_damm_mcnip_N300.mat')
+
+%plot the main effects of a sensitivity analyis on N=300 samples
+X_Labnew = {'kmDep','eaDep','O2frac','Cfrac','dLiq','dGas','kmO2','p','q','death',...
+    'micToSom','aUpt','kmUpt','CUE','eaUpt','a','enzLoss','aDep'};
+sensArr = table(num2cell(Si)', X_Labnew');
+newp = (sortrows(sensArr,-1));
+Si = cell2mat(table2cell(newp(:,1)))';
+X_Labels = table2cell(newp(:,2));
+
+figure
+boxplot1(Si,X_Labels)
+set(gca,'FontSize',20,'XTickLabelRotation',45)
+
+load('/Users/rzabramoff/Documents/MATLAB/microbial_model_trunk/safe_R1.1/glue_damm_mcnip_N3000.mat')
+figure
+scatter_plots(X(:,2),Y,[],'RMSE',X_Labels(1,2))
+ylabel('RMSE')
+%scatter_plots(X,Y,[],'RMSE',X_Labels,idx)

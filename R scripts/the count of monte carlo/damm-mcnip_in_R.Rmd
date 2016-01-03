@@ -1,0 +1,144 @@
+---
+title: "damm-mcnip_in_R"
+author: "rza"
+date: "November 5, 2015"
+output: html_document
+---
+
+##Parameter options
+```{r params}
+#define parameters
+#litter C:N should prob be higher than 27.6
+times.def = 4560
+dt = 0.1
+e = 0.00026
+cn_ex = 27.6
+cn_s = 27.6
+cn_m = 10
+cn_enz = 3
+p = 0.5
+q = 0.5
+a = 0.5
+r = 0.008314
+r_death = 0.00015
+r_ecloss = 0.001
+mic_to_soc = 0.5
+mic_to_son = 0.5
+doc_input = 0.0005
+litter_c = 0.0005
+don_input = 0.0005/27.6
+litter_n = 0.0005/27.6
+a_upt_c = 1.0815e11
+vmax_0 = 1.0815E11
+ea_upt_c = 61.77
+ea_up = 61.77
+km_upt_c = 0.3
+km_upt_n = 0.3
+km_c = 0.0025
+km_n = 0.0025
+cue = 0.31
+km_o2 = 0.121
+dgas = 1.67
+o2airfrac = 0.209
+bd = 0.8
+pd = 2.52
+frac = 0.000414
+dliq = 3.17
+```
+
+##Pool options
+```{r pools}
+#pre-allocate pools
+mic_c <- mic_n <- ec <- soc <- son <- doc <- don <- o2 <- sol_soc <- sol_son <- vector(mode = "double", length = length(times.def)) 
+
+#initialize pools
+mic_c = 1.1957
+mic_n = 0.1196
+soc = 144.5986
+son = 5.4413
+doc = 0.00091631
+don = 0.00049421
+ec = 0.0325
+```
+
+##Fluxes
+```{r fluxes}
+#pre-allocate fluxes
+decom_c <- decom_n <- upt_c <- upt_n <- enz_c <- enz_n <- eprod <- eloss <- growth_c <- growth_n <- growth <- death_c <- death_n <- overflow_c <- cmin <- nmin <- vector(mode = "double", length = length(times.def))
+```
+
+##Environmental Drivers
+```{r envdr}
+#Environmental inputs (190 days worth of data)
+f <- read.csv("/Users/rzabramoff/Dropbox/bu/dissertation_research/damm-mcnip/hformat.csv", sep=",",header=T, na.strings="NA")
+soilt <- f$SoilT #rep(13.73, length(1:times.def)) #
+soilm <- ifelse(f$SoilM > 0.5, 0.5, f$SoilM) # rep(0.3369, length(1:times.def)) #
+
+A1=10;         #seasonal amplitude
+w1=2*pi/4560;
+Tfrz=13
+  times <- 1:4560
+  soilt=Tfrz+A1*sin(w1*times-pi/2);
+  plot(soilt)
+  soilm <- 0.3+0.3*sin(2*pi/(4560/4)*times-pi/2);
+  plot(soilm)
+  
+# soilt <- c(soilt, rep(3,3000))
+# plot(poo)
+# soilm <- c(soilm, rep(0,3000))
+# plot(poo2)
+
+ Yr <- 1
+ soilt <- rep(soilt, Yr)
+ soilm <- rep(soilm, Yr)
+ times.def <- length(soilt)
+```
+
+```{r model}
+temp <-soilt#approxfun(soilt, method = "linear", rule = 2) #approxfun(rep(13, 4560)) #create function for input data
+mois <-soilm#approxfun(soilm, method = "linear", rule = 2) #approxfun(rep(0.3, 4560)) #create function for input data
+
+for (i in 1:times.def) {
+     #relevant model equations
+     porosity = 1 - bd/pd; 
+     o2[i] <- dgas * o2airfrac * (porosity - mois[i])^(4/3) #calculate [o2] at time t
+     sol_soc[i] <- dliq * mois[i]^3 * frac * soc[i] #calculate available soc at reaction site
+     sol_son[i] <- dliq * mois[i]^3 * frac * son[i] #calculate available son at reaction site
+     vmax_upt_c <- vmax_upt_n <- a_upt_c * exp(-ea_upt_c / (r * (temp[i] + 273))) #calculate uptake kinetics
+     vmax_c <- vmax_n <- vmax_0 * exp(-ea_up / (r * (temp[i] + 273))) #calculate depolymerization kinetics
+     upt_c[i] <- mic_c[i] * vmax_upt_c * (doc[i] / (km_upt_c + doc[i])) * (o2[i] / (km_o2 + o2[i])) #microbial C uptake
+     cmin[i] <- upt_c[i] * (1 - cue) #C mineralization
+     upt_n[i] <- mic_n[i] * vmax_upt_n * (don[i] / (km_upt_n + don[i])) * (o2[i] / (km_o2 + o2[i])) #microbial N uptake
+     death_c[i] <- r_death * mic_c[i] #microbial C turnover
+     death_n[i] <- r_death * mic_n[i] #microbial N turnover
+     enz_c[i] <- p * cue * upt_c[i] #amount of C available for enzyme production after C allocated to mineralization
+     enz_n[i] <- q * upt_n[i] #amount of N available for enzyme production
+     eprod[i] <- ifelse(enz_c[i] / cn_enz >= enz_n[i], enz_n[i], enz_c[i] / cn_enz) #if enzyme production is N-limited, then number of enzyme produced = N cost for enzyme production (1 enzyme made for every 1 N used), else enzyme production C-limited
+     growth_c[i] <- (1 - p) * upt_c[i] * cue + enz_c[i] - cn_enz * eprod[i] #available C for biomass growth
+     growth_n[i] <- (1 - q) * upt_n[i] + enz_n[i] - eprod[i] #available N for biomass growth
+     growth[i] <- ifelse(growth_c[i] / cn_m >= growth_n[i], growth_n[i], growth_c[i] / cn_m) #if microbes N-limited, then amount of microbial biomass growth equals cost of N to produce microbes, else growth is C-limited
+     overflow_c[i] <- growth_c[i] - cn_m * growth[i] #extra C after microbial growth goes to overflow metabolism
+     nmin[i] <- growth_n[i] - growth[i] #N mineralization
+     mic_c[i+1] <- mic_c[i] + dt * ( cn_m * growth[i] - death_c[i] ) #microbial biomass C pool, growth multiplied by C:N of microbes because growth = N cost to build a microbe, but C cost is greater
+     mic_n[i+1] <- mic_n[i] + dt * ( growth - death_n ) #microbial biomass N pool
+     eloss[i] <- r_ecloss * ec[i] #enzyme turnover
+     ec[i+1] <- ec[i] + dt * ( eprod[i] - eloss[i] ) #enzyme pool
+     decom_c[i] <- vmax_c * a * ec[i] * sol_soc[i] / (km_c + sol_soc[i]) #depolymerization of soc by enzymes
+     decom_n[i] <- vmax_n * (1 - a) * ec[i] * sol_son[i] / (km_n + sol_son[i]) #depolymerization of son by enzymes
+     soc[i+1] <- soc[i] + dt * ( litter_c + death_c * mic_to_soc - decom_c )
+     son[i+1] <- son[i] + dt * ( litter_n + death_n * mic_to_son - decom_n )
+     doc[i+1] <- doc[i] + dt * ( doc_input + e + decom_c + death_c * (1 - mic_to_soc) + cn_enz / (1 + cn_enz) * eloss - upt_c )#doc pool, enzyme turnover deposited here.
+     don[i+1] <- don[i] + dt * ( don_input + e / cn_ex + decom_n + death_n * (1 - mic_to_son) + 1 / cn_enz * eloss - upt_n )
+#don pool, enzyme turnover deposited here. because enzymes are not split up into separate pools within the model, the amount of C and N created by the turnover of an enzyme is calculated using the C:N of enzymes
+}
+```
+
+```{r}
+par(mfrow = c(2,2))
+plot(1:times.def/24, soilt, col = 2, xlab = "days", ylab = "temperature (degC)")
+plot(1:times.def/24, soilm, col = "blue", xlab = "days", ylab = "soil moisture (cm3 H2O cm-3 soil-1)")
+plot(1:times.def/24, cmin[1:times.def]*100*100/10, col = 1, xlab = "days", ylab = "C mineralization (mg C m-2 hr-1)")
+plot(1:times.def/24, mic_c[1:times.def]*100*100*10/(1000), col = 1, xlab = "days", ylab = "Microbial biomass C (g C m-2)")
+```
+
+

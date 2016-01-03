@@ -1,0 +1,139 @@
+---
+title: "BayesDAMM"
+author: "rza"
+date: "October 29, 2015"
+output: html_document
+---
+
+This script requires the program JAGS (http://sourceforge.net/projects/mcmc-jags/files/) and the library `rjags`.
+
+Note: The number of samples required for publication-quality inference is a good bit larger than the number we run to get a sense of the distribution.  In general, it is better to thin less than to estimate with a very small MCMC sample size provided your posterior densities are smooth and unimodal.  If the posteriors have multiple modes due to slow mixing or lack of convergence they you just have to run longer.
+
+
+```{r}
+#Read in data from field measurements
+mydataFlux<-read.csv("/Users/rzabramoff/Documents/records/dropbox backup/dropbox.6.1.2015/BU/Dissertation_Research/data 2014/Ch4/DAMM-MCNiP/hfdata.csv", sep=",",header=T, na.strings="NA")
+
+soilT<-mydataFlux$SoilT
+soilM <-  ifelse(mydataFlux$SoilM > 0.68, 0.68, mydataFlux$SoilM) #trip values are > porosity (0.6825397)
+areaCflux<-mydataFlux$flux*10000*10
+```
+
+Next we're going to fit the model from the Bayesian perspective using BUGS.  This will allow you to compare the Likelihood and Bayesian approaches and will serve as the foundation for building a more complex model.
+
+For priors we'll assume fairly weak Normal priors on the regression parameters.  The final line where we compute py looks identical to the line before it where we calculate the likelihood of y, but the critical difference is that the y's are the data and thus are KNOWN, while the py's (predicted y's) are not and will be used to construct the model predictive intervals.  BUGS will recognize this distinction when you go to the “load data” step and it sees that the y's are specified and the py's are not.  Since the y's are given BUGS knows that you are saying that the data has this likelihood, while since the py's are not specified BUGS knows that you want the py's to be random numbers drawn from the Normal.  Alternatively, if the py's HAD been specified as an independent data set (e.g. counts of a second species), then BUGS would have instead interpreted this as a second likelihood and found the posterior distribution based on both datasets.
+
+```{r}
+library(rjags) #if (basically) define alpha, everything is fine, but otherwise...weirdness
+ 
+modfx = "
+model {
+  xAlphaSx ~ dunif(0,1e15) ##priors
+  EaSx ~ dunif(0,100) ## priors
+  #kMSx ~ dunif(0,10) ##priors
+  kMSx <- 9.95e-7
+  sigma ~ dnorm(3,0.001)
+  for(i in 1:n){
+	  Sx[i] <- 0.048*0.000414*3.17*(soilM[i])^3
+    O2[i] <- 1.67*0.209*(((1 - 0.8/2.52) - soilM[i])^(4/3))    
+    MMSx[i] <- Sx[i]/(kMSx+Sx[i])
+    MMO2[i] <- O2[i]/(0.121+O2[i])
+    VmaxSx[i] <- xAlphaSx*exp(-EaSx/(0.008314472*(soilT[i]+273.15)))    
+    mu[i] <- 10000*10*VmaxSx[i]*MMSx[i]*MMO2[i]     ## process model
+    areaCflux[i] ~ dnorm(mu[i], sigma)    		## data model
+    pareaCflux[i] ~ dnorm(mu[i], sigma)			## Prediction
+  }
+}
+"
+
+data = list(areaCflux = areaCflux, soilM = soilM, soilT = soilT, n=length(soilT))
+  init.cond1 <- list()
+init.cond1[[1]] = list(EaSx=61.77, xAlphaSx=1.0815e11)
+init.cond1[[2]] = list(EaSx=80, xAlphaSx=1e12)
+init.cond1[[3]] = list(EaSx=72.26, xAlphaSx=5.38e10)
+
+init = init.cond1
+
+j.model   <- jags.model (file = textConnection(modfx),
+                           data = data,
+                           inits = init,
+                           n.chains = 3)
+  ## burn-in
+  b1   <- coda.samples (model = j.model,
+                  variable.names = c("EaSx", "xAlphaSx", "sigma"),
+                  n.iter = 1000, n.burnin=100,n.thin = 2)
+
+## diagnostics of the MCMC
+bmcmc <- as.mcmc.list(b1)  ## convert to MCMC object
+
+#par(ask=FALSE)
+plot(bmcmc)  		## mcmc history and density plot
+autocorr.plot(bmcmc)		## autocorrelation
+#cumuplot(bmcmc)		## quantile plot
+gelman.plot(bmcmc)		## GRB statistic Gelman-Rubin-Brooks
+#autocorr.diag(bmcmc)
+sumb = summary(bmcmc)  	## summary table
+sumb
+
+par(mfrow = c(2,2)) #Ea and kM are super correlated...
+for (i in 1:3){
+plot(as.numeric(bmcmc[[i]][,1]),as.numeric(bmcmc[[i]][,2]))	## pairs plot to evaluate parameter correlation
+}
+par(mfrow = c(1,1))
+
+par(mfrow = c(2,2))
+for (i in 1:3){
+plot(as.numeric(bmcmc[[i]][,2]),as.numeric(bmcmc[[i]][,4]))	## pairs plot to evaluate parameter correlation
+}
+par(mfrow = c(1,1))
+
+par(mfrow = c(2,2))
+for (i in 1:3){
+plot(as.numeric(bmcmc[[i]][,1]),as.numeric(bmcmc[[i]][,4]))	## pairs plot to evaluate parameter correlation
+}
+par(mfrow = c(1,1))
+
+#plot model prediction in pink
+# ty <- 10*2^((x-10)/10) #true parameters
+# my <- 10.2*1.9^((x-10)/10) #predicted parameters
+# plot(x,y)
+# points(x,ty, col = 4)
+# points(x,my, col = 6)
+```
+
+Continue the run while generating model predicted values `py`
+```{r}
+  b1   <- coda.samples (model = j.model,
+                    variable.names = c("r0","q0", "mu", "py"),
+                    n.iter = 5000, n.burnin=100,n.thin = 2)
+
+bmcmc <- as.mcmc.list(b1)  ## convert to MCMC object
+sumb = summary(bmcmc)		## summary table
+```
+```
+Sample size = (Iterations-Burn-in)/Thin
+Chains: 3
+Iterations: 10100
+Burn-in: 100
+Thin: 2
+Sample size: 5000
+```
+
+Plot the model credible interval and predictive interval.
+```{r}
+Ex = as.data.frame(as.matrix(sumb$quantiles[grep("mu", rownames(sumb$quantiles), ignore.case=T),c(1,3,5)]))
+Px = as.data.frame(as.matrix(sumb$quantiles[grep("py", rownames(sumb$quantiles), ignore.case=T),c(1,3,5)]))
+
+Ex = Ex[order(Ex$"50%"),]
+Px = Px[order(Px$"50%"),]
+xseq = seq(0,max(x), length=length(x))
+
+plot(x,y, ylim = c(-1, 1))
+lines(xseq, Ex[,1], col=2,lty=2)
+lines(xseq, Ex[,2], col=2)
+lines(xseq, Ex[,3], col=2, lty = 2)
+lines(xseq, Px[,1], col=4,lty=2)
+lines(xseq, Px[,3], col=4, lty =2)
+#my <- 0.16*2.3^((xseq-10)/10) #predicted parameters
+lines(xseq, my)
+```
