@@ -1,26 +1,24 @@
-Yr = 1;
-imp = 2;
+function DAMM_MCNiP_ECA_fx(Yr, scal, imp, n, A, Ea, frac, cue, amp, refin)
 
-n = '2014';
-switch n 
-    case 'badwater'
+switch n
+    case '2900' %badwater
         F = xlsread('hformat.xlsx');
         T = rep(F(:,1),Yr);
-        soilM = rep(F(:,2).*imp,Yr);
+        soilM = rep(F(:,2).*scal+imp,Yr);
     case '2009'
-        F = xlsread('../data & excel files/mydataGapfilledRight.xlsx');
+        F = xlsread('../data & excel files/mydataGapfilled.xlsx');
         T = rep(F(:,3),Yr);
-        soilM = rep(F(:,4).*imp,Yr);
+        soilM = rep(F(:,4).*scal+imp,Yr);
         Fluxes = xlsread('../data & excel files/mydataFlux.xlsx');
     case '2013'
         F = xlsread('../data & excel files/kath13.xlsx');
         T = rep(F(:,7),Yr);
-        soilM = rep(F(:,8).*imp,Yr); %x2 for some reason
+        soilM = rep(F(:,8).*scal+imp,Yr); %x2 for some reason
         Fluxes = F(:,6);
     case '2014'
         F = xlsread('../data & excel files/kath14.xlsx');
         T = rep(F(:,7),Yr);
-        soilM = rep(F(:,8).*imp,Yr); %x2 for some reason
+        soilM = rep(F(:,8).*scal+imp,Yr); %x2 for some reason
         Fluxes = F(:,6);
 end
 
@@ -62,15 +60,22 @@ r_ECloss = 0.001;%enzyme pool turnover rate hours-1
 MIC_to_SOC  = 0.5; %proportion of dead microbial biomass that re-enters SOC pool, (1-MICtoSOC = proporation of microbial biomass that re-enters DOC pool)
 MIC_to_SON = 0.5; %proportion of dead microbial biomass that re-enters SON pool, (1-MICtoSOC = proporation of microbial biomass that re-enters DON pool)
 
-DOC_input = 0.0005;%0.0005;%external C input into DOC pool(e.g. root exudates,root turnover) mg C cm-3 soil hour-1
+%input seasonal parameters
+A1=amp/2;         %seasonal amplitude
+A2=0;                %daily amplitude
+w1=2.*pi/Nt;
+w2=2.*pi;
+ref=refin/2;
+t=1:Nt;
+DOC_input = ref+A1.*sin(w1.*t-pi/2)+A2.*sin(w2.*t);%0.0005;%external C input into DOC pool(e.g. root exudates,root turnover) mg C cm-3 soil hour-1
 DON_input = DOC_input/CN_s;%external N input into DON pool(e.g.root turnover) mg N cm-3 soil hour-1 
-Litter_C = 0.0005; %external C input into SOC pool(e.g. leaf litter, FWD) mg C cm-3 soil hour-1
+Litter_C = DOC_input; %external C input into SOC pool(e.g. leaf litter, FWD) mg C cm-3 soil hour-1
 Litter_N = Litter_C/CN_l;%external N input into SON pool (e.g.leaf litter, FWD) mg N cm-3 soil hour-1
 
 %Vmax determined by Arrheinus equation, Km by a linear relationship with temp
 %uptake kinetic temperature relationship parameters %%from Davidson et al 2012
-A_UPT_C= 1.0815E11; %5.38*10^10; %2.43E10;  %Arrhenius constant for uptake C vmax unit(mg DOC cm-3 soil hours-1)
-Ea_UPT_C= 61.77; %72.26; %59.19;  %activation energy for arrhenius equation( kJ mol-1) 
+A_UPT_C= A; %1.0815E11; %5.38*10^10; %2.43E10;  %Arrhenius constant for uptake C vmax unit(mg DOC cm-3 soil hours-1)
+Ea_UPT_C= Ea; %61.77; %72.26; %59.19;  %activation energy for arrhenius equation( kJ mol-1) 
 km_UPT_C = 0.3; %can make this temperature sensitive using code below if desired
 
 %Depolymerization kinetic temperature relationship parameters %%from Davidson et al 2012
@@ -83,7 +88,7 @@ Km_O2 = 0.121; %cm3 O2/cm3 air
 Dgas = 1.67; 
 O2airfrac = 0.209; % L O2/ L air 
 porosity = 1 - BD/PD; 
-frac = 0.000414;
+frac = frac; %0.000414;
 Dliq = 3.17;
 
 %Variables, 
@@ -104,8 +109,6 @@ NMIN = zeros(Nt,1); %N mineralized
 O2 = zeros(Nt,1); %concentration of O2
 sol_SOC = zeros(Nt,1); %SOC that can be solubilized
 sol_SON = zeros(Nt,1); %SON that can be solubilized
-avail_SOC = zeros(Nt,1); %available SOC
-avail_SON = zeros(Nt,1); %available SON
 
 %other variables
 DECOM_C = zeros(Nt,1); % C depolymerized by enzymes
@@ -133,38 +136,6 @@ SON(1,:) = initsECA(4);
 DOC(1,:) = initsECA(5);
 DON(1,:)= initsECA(6);
 EC(1,:)= initsECA(7);
-%%good water
-% MIC_C(1,:) = 1.8681;
-% MIC_N(1,:) = 0.1868;
-% SOC(1,:) = 37.8386;
-% SON(1,:) = 1.2955;
-% DOC(1,:) = 0.0733;
-% DON(1,:)= 0.0068;
-% EC(1,:)= 0.0332;
-%%wrong water
-% MIC_C(1,:) = 1.9049;
-% MIC_N(1,:) = 0.1905;
-% SOC(1,:) = 46.9614;
-% SON(1,:) = 1.6084;
-% DOC(1,:) = 0.0226;
-% DON(1,:)= 0.0040;
-% EC(1,:)= 0.0343;
-%%old
-% MIC_C(1,:) = 1.1957; %0.5;
-% MIC_N(1,:) = 0.1196; %0.05;
-% SOC(1,:) = 144.5986; %100;
-% SON(1,:) = 5.4413; %3.6232; 
-% DOC(1,:) = 0.00091631; %0.5; 
-% DON(1,:)= 0.00049421; %0.0333; 
-% EC(1,:)= 0.0325; %0.01; 
-%%spinup
-% MIC_C(1,:) = 0.5;
-% MIC_N(1,:) = 0.05;
-% SOC(1,:) = 100;
-% SON(1,:) = 3.6232; 
-% DOC(1,:) = 0.5; 
-% DON(1,:)= 0.0333; 
-% EC(1,:)= 0.01; 
 
 for i = 1:Nt
 %this section will calculate O2 concentration at time i
@@ -181,7 +152,7 @@ vmax_UPT_C = A_UPT_C .* exp(-Ea_UPT_C./(R.*(T(i)+273))); %temp sensitive accordi
 vmax_upt_N = vmax_UPT_C;
 %km_UPT_C = b_UPT_C + m_UPT_C * T(i); %linear function of temp option
 km_upt_N = km_UPT_C;
-CUE = 0.31; %CUE is set
+CUE = cue; %0.31; %CUE is set
 % b_CUE = 0.63;
 % m_CUE = -0.016;
 %CUE = b_CUE + m_CUE * T(i); %linear function of temp option
@@ -258,252 +229,20 @@ Km_N =  Km_C;
              DECOM_N(i) = Vmax_N .*(1-a)* EC(i) .* sol_SON(i) ./ (Km_N + sol_SON(i) + EC(i)); %ECA depolymerization of SON by enzymes
             
             %SOM pools
-            SOC(i+1) = SOC(i) + dt * (Litter_C + DEATH_C(i) * MIC_to_SOC - DECOM_C(i));
-            SON(i+1) = SON(i) + dt * (Litter_N + DEATH_N(i) * MIC_to_SON - DECOM_N(i));
+            SOC(i+1) = SOC(i) + dt * (Litter_C(i) + DEATH_C(i) * MIC_to_SOC - DECOM_C(i));
+            SON(i+1) = SON(i) + dt * (Litter_N(i) + DEATH_N(i) * MIC_to_SON - DECOM_N(i));
  
             %Dissolved C&N pools
-            DOC(i+1) = DOC(i) + dt * (DOC_input + E + DECOM_C(i) + DEATH_C(i)*(1-MIC_to_SOC) + (CN_enz/(1+CN_enz)).*ELOSS(i) - UPT_C(i));
-            DON(i+1) = DON(i) + dt * (DON_input+ E/CN_ex + DECOM_N(i) + DEATH_N(i) * (1-MIC_to_SON) + (1/CN_enz).*ELOSS(i)- UPT_N(i));
+            DOC(i+1) = DOC(i) + dt * (DOC_input(i) + E + DECOM_C(i) + DEATH_C(i)*(1-MIC_to_SOC) + (CN_enz/(1+CN_enz)).*ELOSS(i) - UPT_C(i));
+            DON(i+1) = DON(i) + dt * (DON_input(i)+ E/CN_ex + DECOM_N(i) + DEATH_N(i) * (1-MIC_to_SON) + (1/CN_enz).*ELOSS(i)- UPT_N(i));
             %turnover from enzymes deposited here. Because enzymes are not split up into separate pools within the model, I calculate the
             %amount of C and N created by the turnover of an enzyme by using the C:N of the enzymes
 
 end
 
-save vars_DMCECA.mat
+save(['vars_DMCECA_',n,'.mat'])
 
-%will create figures for each pool over time 
-% % 
-% figure
-% plot(MIC_C,'LineWidth',3)
-% legend('seasonal model')
-% title('Microbial Biomass')
-% xlabel('timesteps')
-% ylabel('mg C/cm^3 soil') 
-% xlim([Nt-4561 Nt])
-% %hx = graph2d.constantline(length(T)-2281, 'LineStyle',':', 'Color',[.7 .7 .7]);
-% %changedependvar(hx,'x');
-% % % 
-% figure
-% plot(EC,'LineWidth',3)
-% legend('seasonal model')
-% title('Enzyme pool')
-% xlabel('timesteps')
-% ylabel('mg C/cm^3 soil')
-% xlim([Nt-4561 Nt])
-% 
-% figure
-% plot(SOC,'LineWidth',3)
-% legend('seasonal model')
-% title('SOC')
-% xlabel('timesteps')
-% ylabel('mg C/cm^3 soil')
-% xlim([Nt-4561 Nt])
-% % 
-% % figure
-% % plot(SON,'LineWidth',3)
-% % legend('seasonal model')
-% % title('SON')
-% % xlabel('timesteps')
-% % ylabel('mg N/cm^3 soil')
-% % xlim([Nt-4561 Nt])
-% % 
-% figure
-% plot(DOC,'LineWidth',3)
-% legend('seasonal model')
-% title('DOC')
-% xlabel('timesteps')
-% ylabel('mg C/cm^3 soil')
-% xlim([Nt-4561 Nt])
-% % 
-% % figure
-% % plot(DON,'LineWidth',3)
-% % legend('seasonal model')
-% % title('DON')
-% % xlabel('timesteps')
-% % ylabel('mg N/cm^3 soil')
-% % xlim([Nt-4561 Nt])
-% % % 
-% figure
-% plot(CMIN,'LineWidth',3)
-% hold on;
-% plot(Nt-4560:Nt,Fluxes(:,9)./(10000*10)); %sync up the x-axis
-% legend('seasonal model')
-% title('Soil respiration')
-% xlabel('timesteps')
-% ylabel('mg C/cm^3 soil/timestep')
-% xlim([Nt-4561 Nt])
-% % 
-% figure
-% plot(NMIN,'LineWidth',3)
-% legend('seasonal model')
-% title('N mineralization')
-% xlabel('timesteps')
-% ylabel('mg N /cm^3 soil/timestep')
-% xlim([Nt-4561 Nt])
-% 
-% figure
-% plot(DECOM_C,'LineWidth',3)
-% legend('seasonal model')
-% title('C decomposition')
-% xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
-% xlim([Nt-4561 Nt])
-% % 
-% % figure
-% % plot(DECOM_N,'LineWidth',3)
-% % legend('seasonal model')
-% % title('N decomposition')
-% % xlabel('timesteps')
-% % ylabel('mg N /cm^3 soil/timestep')
-% % xlim([Nt-4561 Nt])
-% % 
-% figure
-% plot(UPT_C,'LineWidth',3)
-% legend('seasonal model')
-% title('C uptake')
-% xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
-% xlim([Nt-4561 Nt])
-% % 
-% % figure
-% % plot(UPT_N,'LineWidth',3)
-% % legend('seasonal model')
-% % title('N uptake')
-% % xlabel('timesteps')
-% % ylabel('mg N /cm^3 soil/timestep')
-% % xlim([Nt-4561 Nt])
-% % 
-% % figure
-% % plot(DEATH_C,'LineWidth',3)
-% % legend('seasonal model')
-% % title('Microbial turnover C')
-% % xlabel('timesteps')
-% % ylabel('mg C /cm^3 soil/timestep')
-% % xlim([Nt-4561 Nt])
-% % 
-% % figure
-% % plot(DEATH_N,'LineWidth',3)
-% % legend('seasonal model')
-% % title('Microbial turnover N')
-% % xlabel('timesteps')
-% % ylabel('mg N /cm^3 soil/timestep')
-% % xlim([Nt-4561 Nt])
-% 
-% figure
-% plot(Growth_C,'LineWidth',3)
-% legend('seasonal model')
-% title('C growth')
-% xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
-% xlim([Nt-4561 Nt])
-% % 
-% % figure
-% % plot(overflow_C,'LineWidth',3)
-% % legend('seasonal model')
-% % title('overflow C')
-% % xlabel('timesteps')
-% % ylabel('mg C /cm^3 soil/timestep') 
-% % xlim([Nt-4561 Nt])
-% % 
-% figure
-% plot(soilM,'LineWidth',3)
-% legend('seasonal model')
-% title('SoilM')
-% xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
-% xlim([Nt-4561 Nt])
-% 
-% % figure
-% % plot(T,'LineWidth',3)
-% % legend('seasonal model')
-% % title('temperature')
-% % xlabel('timesteps')
-% % ylabel('mg C /cm^3 soil/timestep')
-% % xlim([Nt-4561 Nt])
-% % 
-% % figure
-% % plot(sol_SOC,'LineWidth',3)
-% % legend('seasonal model')
-% % title('sol_SOC')
-% % xlabel('timesteps')
-% % ylabel('mg C /cm^3 soil/timestep') 
-% % xlim([Nt-4561 Nt])
-% 
-% figure
-% plot(O2,'LineWidth',3)
-% legend('seasonal model')
-% title('O2')
-% xlabel('timesteps')
-% ylabel('mg C /cm^3 soil/timestep')
-% xlim([Nt-4561 Nt])
-% % 
-
-%end clock
-toc
-
-%annual estimates at end of run
-% resp = sum(CMIN(Nt-4561:Nt,1));%in mg/cm3/yr
-% nmin = sum(NMIN(Nt-4561:Nt,1));
-% decomp = sum(DECOM_C(Nt-4561:Nt,1));
-% 
-% resp
-% nmin
-%   headers = ['CMIN'];
-%   heads = cellstr(headers);
-%   csvwrite_with_headers('cmin_nov615_roots.csv',CMIN(Nt-4560:Nt),heads)
-
-% write files
-% headers = ['SOC'];
-% heads = cellstr(headers);
-% csvwrite_with_headers('DMC_soc.csv',SOC(Nt-4560:Nt),heads)
-% 
-% headers = ['CMIN'];
-% heads = cellstr(headers);
-% csvwrite_with_headers('DMC_cmin.csv',CMIN(Nt-4560:Nt),heads)
-
-switch n 
-    case 'badwater'
-        figure
-        plot(CMIN,'LineWidth',3)
-        hold on;
-        plot(1:4561,Fluxes(:,9)./(10000*10));
-        legend('seasonal model')
-        title('Soil respiration')
-        xlabel('timesteps')
-        ylabel('mg C/cm^3 soil/timestep')
-    case '2009'
-        figure
-        plot(CMIN,'LineWidth',3)
-        hold on;
-        plot(Nt-6072:Nt-1512,Fluxes(:,9)./(10000*10));
-        legend('seasonal model')
-        title('Soil respiration')
-        xlabel('timesteps')
-        ylabel('mg C/cm^3 soil/timestep')
-        xlim([Nt-6072 Nt-1512])
-    case {'2013','2014'}
-        figure
-        plot(CMIN,'LineWidth',3)
-        hold on;
-        plot(Fluxes./(10000*10));
-        legend('seasonal model')
-        title('Soil respiration')
-        xlabel('timesteps')
-        ylabel('mg C/cm^3 soil/timestep')
 end
-
-% x = CMIN(Nt-6072:Nt-1512);
-% y = Fluxes(:,9)./(10000*10);
-% 
-% a = nancov(x,y,'pairwise');
-% a(1,2)
-
-headers = ['DMC'];
-heads = cellstr(headers);
-%csvwrite_with_headers('DMCECA_var_cmin.csv',CMIN(Nt-6072:Nt-1512),heads)
-csvwrite_with_headers('DMCECA_var_cmin.csv',CMIN,heads)
-
-
 
 
 
