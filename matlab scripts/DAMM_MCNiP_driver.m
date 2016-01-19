@@ -1,17 +1,17 @@
 %DAMM_MCNiP driver
 
 Yr = 1;
-scal = [1 1.6708 1.7177]; %mean 0.356 for all..  
+scal = [1 1 1];%[1 1.6708 1.7177]; %mean 0.356 for all..  
 imp = 0;
 n = [2009 2013 2014];
-A =  2.43E10; %1.0815E11; %5.38*10^10;
-Ea = 59.19; % 61.77; %72.26; 
+A =  1.0815E11; %2.43E10; %5.38*10^10;
+Ea = 59.9; %59.19; % 61.77; %72.26; %only ea_dep, ea_upt is 61.77
 frac = 0.000414; %0.001; %
 cue = 0.31;
 amp = 0.0005; %0.001; %aka 230 gC/m2 for 190 days
             %0.0005 aka 115 gC/m2 
-              %183 gC/m2 (oak litterfall)
-refin = 0.001;
+             %183 gC/m2 (oak litterfall)
+refin = 0.0005; %0.001;
 
 for i = 1:length(n)
 DAMM_MCNiP_ECA_fx(Yr, scal(i), imp, num2str(n(i)), A, Ea, frac, cue, amp, refin)

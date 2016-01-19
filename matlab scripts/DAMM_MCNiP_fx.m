@@ -6,7 +6,7 @@ switch n
         T = rep(F(:,1),Yr);
         soilM = rep(F(:,2).*scal+imp,Yr);
     case '2009'
-        F = xlsread('../data & excel files/mydataGapfilled.xlsx');
+        F = xlsread('../data & excel files/mydataGapfilledRight.xlsx');
         T = rep(F(:,3),Yr);
         soilM = rep(F(:,4).*scal+imp,Yr);
         Fluxes = xlsread('../data & excel files/mydataFlux.xlsx');
@@ -75,12 +75,12 @@ Litter_N = Litter_C/CN_l;%external N input into SON pool (e.g.leaf litter, FWD) 
 %Vmax determined by Arrheinus equation, Km by a linear relationship with temp
 %uptake kinetic temperature relationship parameters %%from Davidson et al 2012
 A_UPT_C= A; %2.43E10; %1.0815E11; %Arrhenius constant for uptake C vmax unit(mg DOC cm-3 soil hours-1)
-Ea_UPT_C= Ea; %59.19; %61.77; %activation energy for arrhenius equation( kJ mol-1) 
+Ea_UPT_C= 61.77; %59.19; %61.77; %activation energy for arrhenius equation( kJ mol-1) 
 km_UPT_C = 0.3; %can make this temperature sensitive using code below if desired
 
 %Depolymerization kinetic temperature relationship parameters %%from Davidson et al 2012
 A_C = A_UPT_C; %2.43E10; %1.0815E11; %Arrhenius constant mg SOM cm-3 soil hours-1
-Ea_C = Ea_UPT_C; %59.19; %61.77; %activation energy for arrhenius equation, kJ mol-1 
+Ea_C = Ea; %Ea_UPT_C; %59.19; %61.77; %activation energy for arrhenius equation, kJ mol-1 
 Km_C = 0.0025;%can make this temperature sensitive using code below if desired
 
 %DAMM constants
